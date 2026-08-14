@@ -42,12 +42,14 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
     if (!access.granted) throw new AppError("Access denied", 403);
 
-    const candidate = await Candidate.findOne({ eventId: event._id, email: query.email.toLowerCase() });
-    if (!candidate) throw new AppError("Not found", 404);
+    const candidates = await Candidate.find({ eventId: event._id, email: query.email.toLowerCase() }).select("_id");
+    if (!candidates || candidates.length === 0) throw new AppError("Not found", 404);
+
+    const candidateIds = candidates.map((c) => c._id);
 
     const certificate = await Certificate.findOne({
       eventId: event._id,
-      candidateId: candidate._id,
+      candidateId: { $in: candidateIds },
       certificateNumber: certificateNumber.toUpperCase(),
       status: "GENERATED",
     });
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       eventId: event._id,
       certificateId: certificate._id,
       actorType: "CANDIDATE",
-      actorId: candidate.email,
+      actorId: query.email,
       action: `certificate.download.${query.format}`,
     });
 

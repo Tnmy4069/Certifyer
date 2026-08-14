@@ -92,14 +92,15 @@ export function parseCsvText(text: string): ParsedCsv {
 export function validateCandidateRows(
   rows: CsvRow[],
   mapping: CandidateMapping,
-  existingEmails: Iterable<string> = []
+  existingKeys: Iterable<string> = []
 ): CandidateValidationResult {
-  const existing = new Set(Array.from(existingEmails, (email) => email.trim().toLowerCase()));
+  const existing = new Set(Array.from(existingKeys, (key) => key.trim().toLowerCase()));
   const seen = new Set<string>();
 
   const validated = rows.map<ValidatedCandidateRow>((source, index) => {
     const name = readMapped(source, mapping.name);
     const email = readMapped(source, mapping.email).toLowerCase();
+    const role = readMapped(source, mapping.role).toLowerCase();
     const errors: string[] = [];
 
     if (!name) errors.push("Name is required");
@@ -110,22 +111,25 @@ export function validateCandidateRows(
       return { rowNumber: index + 2, source, status: "invalid", errors };
     }
 
-    if (seen.has(email)) {
+    // A duplicate is only an exact identical entry (same email, role, and name)
+    const key = `${email}:::${role}:::${name.toLowerCase()}`;
+
+    if (seen.has(key)) {
       return {
         rowNumber: index + 2,
         source,
         status: "duplicate",
-        errors: ["Duplicate email in this file"],
+        errors: ["Duplicate identical entry in this file"],
       };
     }
-    seen.add(email);
+    seen.add(key);
 
-    if (existing.has(email)) {
+    if (existing.has(key)) {
       return {
         rowNumber: index + 2,
         source,
         status: "duplicate",
-        errors: ["Email already exists for this event"],
+        errors: ["Candidate entry with this exact role/name already exists for this event"],
       };
     }
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Check, Copy, Download, ExternalLink, Share2 } from "lucide-react";
+import { Award, Check, Copy, Download, ExternalLink, Layers, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,9 @@ import { Label } from "@/components/ui/label";
 type FoundCertificate = {
   certificateNumber: string;
   candidateName: string;
+  role?: string;
+  organization?: string;
+  department?: string;
   eventName: string;
   organizerName?: string;
   issuedAt?: string;
@@ -48,14 +52,11 @@ function buildLinkedinAddUrl({
     certId,
   });
 
-  // Extract numeric organization ID if provided (e.g. 12345678 or https://www.linkedin.com/company/12345678/)
   const cleanOrgId = organizationId?.trim().replace(/^.*\/company\//, "").replace(/[^0-9]/g, "");
 
   if (cleanOrgId) {
-    // Pass numeric organizationId so LinkedIn automatically matches and fills the issuing organization!
     params.set("organizationId", cleanOrgId);
   } else if (organizationName?.trim()) {
-    // Only pass plain text organizationName if no numeric organizationId is configured
     params.set("organizationName", organizationName.trim());
   }
 
@@ -91,7 +92,8 @@ export function PublicPortalClient({
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [certificate, setCertificate] = useState<FoundCertificate | null>(null);
+  const [certificates, setCertificates] = useState<FoundCertificate[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [eventData, setEventData] = useState<EventDetails>({
     name: eventName,
     organizerName,
@@ -100,10 +102,13 @@ export function PublicPortalClient({
   });
   const [copiedText, setCopiedText] = useState(false);
 
+  const activeCertificate = certificates[selectedIndex] ?? certificates[0] ?? null;
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
-    setCertificate(null);
+    setCertificates([]);
+    setSelectedIndex(0);
     try {
       const response = await fetch("/api/public/certificate/search", {
         method: "POST",
@@ -111,9 +116,28 @@ export function PublicPortalClient({
         body: JSON.stringify({ eventSlug, email }),
       });
       const data = await response.json();
+
+      if (response.status === 202) {
+        toast.info(data.message || "Your certificates are being generated. Please wait a moment.");
+        return;
+      }
+
       if (!response.ok) throw new Error(data.error || "No certificate found for this email.");
+
+      const list: FoundCertificate[] = Array.isArray(data.certificates)
+        ? data.certificates
+        : data.certificate
+        ? [data.certificate]
+        : [];
+
+      if (list.length === 0) {
+        throw new Error("No certificate found for this email.");
+      }
+
       setAccessToken(data.accessToken);
-      setCertificate(data.certificate);
+      setCertificates(list);
+      setSelectedIndex(0);
+
       if (data.event) {
         setEventData({
           name: data.event.name || eventName,
@@ -122,6 +146,10 @@ export function PublicPortalClient({
           linkedinCertificationName: data.event.linkedinCertificationName ?? linkedinCertificationName,
         });
       }
+
+      if (list.length > 1) {
+        toast.success(`Found ${list.length} certificates for your email!`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Lookup failed");
     } finally {
@@ -129,41 +157,46 @@ export function PublicPortalClient({
     }
   }
 
-  function downloadUrl(format: "png" | "pdf") {
-    if (!certificate || !accessToken) return "#";
+  function downloadUrl(cert: FoundCertificate, format: "png" | "pdf") {
+    if (!cert || !accessToken) return "#";
     const params = new URLSearchParams({
       eventSlug,
       email,
       token: accessToken,
       format,
     });
-    return `/api/public/certificate/${certificate.certificateNumber}/download?${params.toString()}`;
+    return `/api/public/certificate/${cert.certificateNumber}/download?${params.toString()}`;
   }
 
-  // LinkedIn URLs
-  const verifyPageUrl = certificate
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/verify/${certificate.certificateNumber}`
+  const verifyPageUrl = activeCertificate
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/verify/${activeCertificate.certificateNumber}`
     : "";
 
   const certificationTitle =
     eventData.linkedinCertificationName?.trim() ||
-    (certificate ? `${certificate.eventName} Certificate` : `${eventName} Certificate`);
+    (activeCertificate
+      ? activeCertificate.role
+        ? `${activeCertificate.eventName} - ${activeCertificate.role}`
+        : `${activeCertificate.eventName} Certificate`
+      : `${eventName} Certificate`);
 
-  const linkedinAddUrl = certificate
+  const linkedinAddUrl = activeCertificate
     ? buildLinkedinAddUrl({
         certificationName: certificationTitle,
         organizationId: eventData.linkedinOrganizationId,
-        organizationName: eventData.organizerName || certificate.organizerName,
-        issueDate: certificate.issuedAt,
+        organizationName: eventData.organizerName || activeCertificate.organizerName,
+        issueDate: activeCertificate.issuedAt,
         certUrl: verifyPageUrl,
-        certId: certificate.certificateNumber,
+        certId: activeCertificate.certificateNumber,
       })
     : "";
 
-  const linkedinShareUrl = certificate ? buildLinkedinShareUrl(verifyPageUrl) : "";
+  const linkedinShareUrl = activeCertificate ? buildLinkedinShareUrl(verifyPageUrl) : "";
 
-  const shareCaption = certificate
-    ? `🎓 Excited to share that I have received my certificate for ${certificate.eventName}!\n\nVerify credential: ${verifyPageUrl}\n\n#certification #achievement #learning`
+  const shareCaption = activeCertificate
+    ? `🎓 Excited to share that I have received my certificate for ${activeCertificate.eventName}${
+        activeCertificate.role ? ` (${activeCertificate.role})` : ""
+      }!\n\nVerify credential: ${verifyPageUrl}\n\n#certification #achievement #learning`
     : "";
 
   async function copyShareText() {
@@ -215,40 +248,120 @@ export function PublicPortalClient({
         </CardContent>
       </Card>
 
-      {certificate ? (
+      {certificates.length > 0 && activeCertificate && (
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Certificate Found</CardTitle>
-            <CardDescription>Your certificate is ready to download.</CardDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <CardTitle>
+                  {certificates.length > 1
+                    ? `Certificates Found (${certificates.length})`
+                    : "Certificate Found"}
+                </CardTitle>
+                <CardDescription>
+                  {certificates.length > 1
+                    ? "Multiple certificates are registered with your email. Select below:"
+                    : "Your certificate is ready to download."}
+                </CardDescription>
+              </div>
+              {certificates.length > 1 && (
+                <Badge variant="muted" className="flex items-center gap-1">
+                  <Layers className="h-3 w-3" />
+                  {certificates.length} Total
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="space-y-1 text-sm">
-              <p>
-                <span className="text-muted-foreground">Candidate:</span> {certificate.candidateName}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Event:</span> {certificate.eventName}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Certificate ID:</span> {certificate.certificateNumber}
-              </p>
+            {/* Multi-certificate selector tabs if more than 1 certificate exists */}
+            {certificates.length > 1 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground">Select Certificate:</Label>
+                <div className="flex flex-col gap-2">
+                  {certificates.map((cert, index) => {
+                    const isSelected = index === selectedIndex;
+                    return (
+                      <button
+                        key={cert.certificateNumber}
+                        type="button"
+                        onClick={() => setSelectedIndex(index)}
+                        className={`flex items-center justify-between rounded-lg border p-3 text-left text-sm transition-all ${
+                          isSelected
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : "border-border bg-card hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                              isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            <Award className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium leading-none">
+                              {cert.role || `Certificate #${index + 1}`}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground font-mono">
+                              {cert.certificateNumber}
+                            </p>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Badge variant="default" className="text-[10px]">
+                            Selected
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Certificate metadata details */}
+            <div className="rounded-lg border bg-muted/20 p-3.5 space-y-1.5 text-sm">
+              <div>
+                <span className="text-muted-foreground">Candidate:</span>{" "}
+                <span className="font-medium">{activeCertificate.candidateName}</span>
+              </div>
+              {activeCertificate.role && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Role / Category:</span>
+                  <Badge variant="outline" className="text-xs font-normal">
+                    {activeCertificate.role}
+                  </Badge>
+                </div>
+              )}
+              <div>
+                <span className="text-muted-foreground">Event:</span> {activeCertificate.eventName}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Certificate ID:</span>{" "}
+                <code className="text-xs font-mono font-semibold">{activeCertificate.certificateNumber}</code>
+              </div>
             </div>
 
             {/* Certificate preview */}
             <div className="overflow-hidden rounded-lg border bg-muted/30">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={certificate.pngUrl} alt="Certificate preview" className="h-auto w-full" />
+              <img
+                src={activeCertificate.pngUrl}
+                alt={`Certificate ${activeCertificate.certificateNumber}`}
+                className="h-auto w-full"
+              />
             </div>
 
             {/* Download buttons */}
             <div className="grid grid-cols-2 gap-3">
               <Button asChild variant="outline">
-                <a href={downloadUrl("png")}>
+                <a href={downloadUrl(activeCertificate, "png")}>
                   <Download className="mr-2 h-4 w-4" /> Download PNG
                 </a>
               </Button>
               <Button asChild>
-                <a href={downloadUrl("pdf")}>
+                <a href={downloadUrl(activeCertificate, "pdf")}>
                   <Download className="mr-2 h-4 w-4" /> Download PDF
                 </a>
               </Button>
@@ -266,14 +379,12 @@ export function PublicPortalClient({
               </div>
 
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Add this credential to your LinkedIn <strong>Licenses &amp; Certifications</strong> profile section, or share a post with your network.
+                Add this credential ({activeCertificate.role || "Certificate"}) to your LinkedIn{" "}
+                <strong>Licenses &amp; Certifications</strong> profile section, or share a post with your network.
               </p>
 
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  asChild
-                  className="flex-1 bg-[#0A66C2] text-white hover:bg-[#004182]"
-                >
+                <Button asChild className="flex-1 bg-[#0A66C2] text-white hover:bg-[#004182]">
                   <a href={linkedinAddUrl} target="_blank" rel="noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Add to Profile
@@ -293,9 +404,7 @@ export function PublicPortalClient({
               </div>
 
               <div className="flex items-center justify-between gap-2 border-t border-blue-200/60 pt-2.5">
-                <span className="text-[11px] text-muted-foreground">
-                  Want to write a custom post?
-                </span>
+                <span className="text-[11px] text-muted-foreground">Want to write a custom post?</span>
                 <Button
                   type="button"
                   size="sm"
@@ -319,13 +428,15 @@ export function PublicPortalClient({
 
               {isLocalhost && (
                 <p className="text-[11px] text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
-                  📌 <strong>Note for localhost:</strong> LinkedIn web crawlers cannot fetch images/previews from <code>localhost:3000</code>. On a live domain (production or ngrok), LinkedIn will automatically display the certificate card. <strong>&ldquo;Add to Profile&rdquo;</strong> works immediately!
+                  📌 <strong>Note for localhost:</strong> LinkedIn web crawlers cannot fetch images/previews from{" "}
+                  <code>localhost:3000</code>. On a live domain (production or ngrok), LinkedIn will automatically display
+                  the certificate card. <strong>&ldquo;Add to Profile&rdquo;</strong> works immediately!
                 </p>
               )}
             </div>
           </CardContent>
         </Card>
-      ) : null}
+      )}
     </div>
   );
 }

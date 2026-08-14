@@ -16,8 +16,11 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = candidateImportSchema.parse(await parseJson<unknown>(request));
     await connectDb();
     const event = await getOwnedEvent(id, session.user.id);
-    const existingEmails = await Candidate.distinct("email", { eventId: event._id });
-    const validation = validateCandidateRows(body.rows, body.mapping, existingEmails);
+    const existingCandidates = await Candidate.find({ eventId: event._id }).select("email role name").lean();
+    const existingKeys = existingCandidates.map(
+      (c) => `${c.email.toLowerCase()}:::${(c.role || "").toLowerCase()}:::${c.name.toLowerCase()}`
+    );
+    const validation = validateCandidateRows(body.rows, body.mapping, existingKeys);
 
     return jsonOk({ validation });
   } catch (error) {

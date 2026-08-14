@@ -26,13 +26,18 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const body = manualCandidateSchema.parse(await parseJson<unknown>(request));
 
-    // Check for duplicate email within this event
-    const existing = await Candidate.findOne({ eventId: event._id, email: body.email });
+    // Check for exact identical candidate within this event (same email, role, and name)
+    const existing = await Candidate.findOne({
+      eventId: event._id,
+      email: body.email,
+      name: body.name,
+      role: body.role,
+    });
     if (existing) {
       throw new AppError(
-        `A candidate with email ${body.email} already exists in this event.`,
+        `A candidate entry for ${body.email} with role "${body.role || "default"}" already exists in this event.`,
         409,
-        "DUPLICATE_EMAIL"
+        "DUPLICATE_CANDIDATE"
       );
     }
 

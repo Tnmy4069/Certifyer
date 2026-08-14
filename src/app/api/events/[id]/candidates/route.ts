@@ -58,14 +58,17 @@ export async function POST(request: NextRequest, { params }: Params) {
     const db = await connectDb();
     const event = await getOwnedEvent(id, session.user.id);
 
-    const existingEmails = await Candidate.distinct("email", { eventId: event._id });
-    const validation = validateCandidateRows(body.rows, body.mapping, existingEmails);
+    const existingCandidates = await Candidate.find({ eventId: event._id }).select("email role name").lean();
+    const existingKeys = existingCandidates.map(
+      (c) => `${c.email.toLowerCase()}:::${(c.role || "").toLowerCase()}:::${c.name.toLowerCase()}`
+    );
+    const validation = validateCandidateRows(body.rows, body.mapping, existingKeys);
     const documents = validation.rows
       .filter((row) => row.status === "valid" && row.candidate)
       .map((row) => ({ ...row.candidate!, eventId: event._id }));
 
     if (documents.length === 0) {
-      return jsonOk({ imported: 0, validation, candidateCount: existingEmails.length });
+      return jsonOk({ imported: 0, validation, candidateCount: existingCandidates.length });
     }
 
     const mongoSession = await db.startSession();

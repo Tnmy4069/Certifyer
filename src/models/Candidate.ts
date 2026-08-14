@@ -14,7 +14,7 @@ const CandidateSchema = new Schema(
   { timestamps: true }
 );
 
-CandidateSchema.index({ eventId: 1, email: 1 }, { unique: true });
+CandidateSchema.index({ eventId: 1, email: 1 });
 CandidateSchema.index({ eventId: 1, name: 1 });
 
 export type CandidateDocument = InferSchemaType<typeof CandidateSchema> & {
