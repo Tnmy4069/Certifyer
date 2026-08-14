@@ -4,6 +4,7 @@ import { AppError, jsonError, jsonOk, parseJson } from "@/lib/api";
 import { connectDb } from "@/lib/db";
 import { generateCertificateNow } from "@/lib/generation/generate";
 import { getStorage } from "@/lib/storage";
+import { getRequestOrigin } from "@/lib/utils";
 import { AuditEvent, Certificate, Event } from "@/models";
 import mongoose from "mongoose";
 
@@ -84,10 +85,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     // "generate" (for NOT_GENERATED certs) and "regenerate" (for GENERATED certs) both
     // call generateCertificateNow with force=true so admin can always trigger it.
     if (body.action === "generate" || body.action === "regenerate") {
+      const origin = getRequestOrigin(request);
       const result = await generateCertificateNow(String(certificate._id), {
         force: true,
         actorType: "ADMIN",
         actorId: session.user.id,
+        baseUrl: origin,
       });
 
       if (!result.ok) {

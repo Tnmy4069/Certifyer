@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { connectDb } from "@/lib/db";
 import { getOwnedEvent, serializeEvent } from "@/lib/events/helpers";
@@ -32,7 +33,11 @@ export default async function EventDetailPage({ params }: Params) {
   ]);
 
   const serialized = serializeEvent(event);
-  const publicUrl = absoluteUrl(`/public/${event.slug}`);
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host");
+  const proto = headersList.get("x-forwarded-proto") || (host?.includes("localhost") || host?.includes("127.0.0.1") ? "http" : "https");
+  const origin = host ? `${proto}://${host}` : undefined;
+  const publicUrl = absoluteUrl(`/public/${event.slug}`, origin);
 
   return (
     <div className="space-y-6">

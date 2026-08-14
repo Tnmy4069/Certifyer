@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { connectDb } from "@/lib/db";
 import { absoluteUrl, formatDate } from "@/lib/utils";
 import { AuditEvent, Candidate, Certificate, Event } from "@/models";
@@ -31,8 +32,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const candidateName = candidate?.name || "Candidate";
   const eventName = event?.name || "Event";
   const organizerName = event?.organizerName || "Certify";
-  const previewUrl = absoluteUrl(`/api/public/certificate/${certificate.certificateNumber}/preview`);
-  const verifyUrl = absoluteUrl(`/verify/${certificate.certificateNumber}`);
+
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host");
+  const proto = headersList.get("x-forwarded-proto") || (host?.includes("localhost") || host?.includes("127.0.0.1") ? "http" : "https");
+  const origin = host ? `${proto}://${host}` : undefined;
+
+  const previewUrl = absoluteUrl(`/api/public/certificate/${certificate.certificateNumber}/preview`, origin);
+  const verifyUrl = absoluteUrl(`/verify/${certificate.certificateNumber}`, origin);
 
   return {
     title: `Certificate of Completion - ${candidateName} | ${eventName}`,
@@ -82,8 +89,14 @@ function buildLinkedinAddUrl({
     certUrl,
     certId,
   });
-  if (organizationId) params.set("organizationId", organizationId);
-  if (organizationName) params.set("organizationName", organizationName);
+
+  const cleanOrgId = organizationId?.trim().replace(/^.*\/company\//, "").replace(/[^0-9]/g, "");
+  if (cleanOrgId) {
+    params.set("organizationId", cleanOrgId);
+  } else if (organizationName?.trim()) {
+    params.set("organizationName", organizationName.trim());
+  }
+
   if (issueDate) {
     const d = new Date(issueDate);
     if (!Number.isNaN(d.getTime())) {
@@ -133,7 +146,13 @@ export default async function VerifyPage({ params }: Params) {
   });
 
   const revoked = certificate.status === "REVOKED";
-  const verifyUrl = absoluteUrl(`/verify/${certificate.certificateNumber}`);
+
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host");
+  const proto = headersList.get("x-forwarded-proto") || (host?.includes("localhost") || host?.includes("127.0.0.1") ? "http" : "https");
+  const origin = host ? `${proto}://${host}` : undefined;
+
+  const verifyUrl = absoluteUrl(`/verify/${certificate.certificateNumber}`, origin);
   const previewUrl = `/api/public/certificate/${certificate.certificateNumber}/preview`;
 
   const linkedinAddUrl = !revoked

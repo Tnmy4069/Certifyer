@@ -12,9 +12,17 @@ type FoundCertificate = {
   certificateNumber: string;
   candidateName: string;
   eventName: string;
+  organizerName?: string;
   issuedAt?: string;
   pngUrl: string;
   pdfUrl?: string | null;
+};
+
+type EventDetails = {
+  name: string;
+  organizerName: string;
+  linkedinOrganizationId: string;
+  linkedinCertificationName: string;
 };
 
 /** Build the LinkedIn "Add to Profile" deep-link URL */
@@ -40,10 +48,14 @@ function buildLinkedinAddUrl({
     certId,
   });
 
-  if (organizationId?.trim()) {
-    params.set("organizationId", organizationId.trim());
-  }
-  if (organizationName?.trim()) {
+  // Extract numeric organization ID if provided (e.g. 12345678 or https://www.linkedin.com/company/12345678/)
+  const cleanOrgId = organizationId?.trim().replace(/^.*\/company\//, "").replace(/[^0-9]/g, "");
+
+  if (cleanOrgId) {
+    // Pass numeric organizationId so LinkedIn automatically matches and fills the issuing organization!
+    params.set("organizationId", cleanOrgId);
+  } else if (organizationName?.trim()) {
+    // Only pass plain text organizationName if no numeric organizationId is configured
     params.set("organizationName", organizationName.trim());
   }
 
@@ -80,6 +92,12 @@ export function PublicPortalClient({
   const [loading, setLoading] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [certificate, setCertificate] = useState<FoundCertificate | null>(null);
+  const [eventData, setEventData] = useState<EventDetails>({
+    name: eventName,
+    organizerName,
+    linkedinOrganizationId,
+    linkedinCertificationName,
+  });
   const [copiedText, setCopiedText] = useState(false);
 
   async function onSubmit(event: FormEvent) {
@@ -96,6 +114,14 @@ export function PublicPortalClient({
       if (!response.ok) throw new Error(data.error || "No certificate found for this email.");
       setAccessToken(data.accessToken);
       setCertificate(data.certificate);
+      if (data.event) {
+        setEventData({
+          name: data.event.name || eventName,
+          organizerName: data.event.organizerName || organizerName,
+          linkedinOrganizationId: data.event.linkedinOrganizationId ?? linkedinOrganizationId,
+          linkedinCertificationName: data.event.linkedinCertificationName ?? linkedinCertificationName,
+        });
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Lookup failed");
     } finally {
@@ -120,14 +146,14 @@ export function PublicPortalClient({
     : "";
 
   const certificationTitle =
-    linkedinCertificationName.trim() ||
+    eventData.linkedinCertificationName?.trim() ||
     (certificate ? `${certificate.eventName} Certificate` : `${eventName} Certificate`);
 
   const linkedinAddUrl = certificate
     ? buildLinkedinAddUrl({
         certificationName: certificationTitle,
-        organizationId: linkedinOrganizationId,
-        organizationName: organizerName,
+        organizationId: eventData.linkedinOrganizationId,
+        organizationName: eventData.organizerName || certificate.organizerName,
         issueDate: certificate.issuedAt,
         certUrl: verifyPageUrl,
         certId: certificate.certificateNumber,

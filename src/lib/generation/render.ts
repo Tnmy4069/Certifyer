@@ -20,6 +20,7 @@ export type RenderContext = {
     eventDate: Date | string;
   };
   certificateNumber: string;
+  baseUrl?: string;
 };
 
 function escapeXml(value: string): string {
@@ -121,7 +122,9 @@ export async function renderCertificatePng(options: {
 
   let qrDataUrl: string | null = null;
   if (configuration.qr?.enabled) {
-    const verifyUrl = absoluteUrl(`/verify/${context.certificateNumber}`);
+    const verifyUrl = context.baseUrl
+      ? `${context.baseUrl.replace(/\/$/, "")}/verify/${context.certificateNumber}`
+      : absoluteUrl(`/verify/${context.certificateNumber}`);
     qrDataUrl = await QRCode.toDataURL(verifyUrl, {
       margin: 1,
       width: configuration.qr.size * 2,

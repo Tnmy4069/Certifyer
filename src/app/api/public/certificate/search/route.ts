@@ -7,6 +7,7 @@ import { ensureCertificateRecord } from "@/lib/certificates/ensure-cert";
 import { generateCertificateNow } from "@/lib/generation/generate";
 import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
 import { getStorage } from "@/lib/storage";
+import { getRequestOrigin } from "@/lib/utils";
 import { AuditEvent, Candidate, Certificate, Event } from "@/models";
 
 const searchSchema = z.object({
@@ -58,9 +59,11 @@ export async function POST(request: NextRequest) {
 
     // Generate on-demand if not yet produced (or previously failed)
     if (certificate.status !== "GENERATED") {
+      const origin = getRequestOrigin(request);
       const result = await generateCertificateNow(String(certificate._id), {
         actorType: "CANDIDATE",
         actorId: candidate.email,
+        baseUrl: origin,
       });
 
       if (!result.ok) {
@@ -110,9 +113,16 @@ export async function POST(request: NextRequest) {
         certificateNumber: certificate.certificateNumber,
         candidateName: candidate.name,
         eventName: event.name,
+        organizerName: event.organizerName,
         issuedAt: certificate.issuedAt,
         pngUrl: storage.createSignedUrl(certificate.pngKey, 15 * 60),
         pdfUrl: certificate.pdfKey ? storage.createSignedUrl(certificate.pdfKey, 15 * 60) : null,
+      },
+      event: {
+        name: event.name,
+        organizerName: event.organizerName,
+        linkedinOrganizationId: event.linkedinOrganizationId ?? "",
+        linkedinCertificationName: event.linkedinCertificationName ?? "",
       },
     });
   } catch (error) {

@@ -30,11 +30,12 @@ export async function generateCertificateNow(
     force?: boolean;
     actorType?: "ADMIN" | "CANDIDATE" | "SYSTEM";
     actorId?: string;
+    baseUrl?: string;
   } = {}
 ): Promise<GenerateResult> {
   await connectDb();
 
-  const { force = false, actorType = "SYSTEM", actorId = "system" } = options;
+  const { force = false, actorType = "SYSTEM", actorId = "system", baseUrl } = options;
 
   // Atomically acquire the lock.
   // Conditions to allow generation:
@@ -111,6 +112,7 @@ export async function generateCertificateNow(
         eventDate: event.eventDate,
       },
       certificateNumber: locked.certificateNumber,
+      baseUrl,
     };
 
     const png = await renderCertificatePng({
