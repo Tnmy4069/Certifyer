@@ -34,21 +34,7 @@ export default function SuperAdminLoginForm() {
       return;
     }
 
-    // Check if user is SUPER_ADMIN — fetch session to verify role
-    const sessionRes = await fetch("/api/auth/session");
-    const session = await sessionRes.json();
-
-    if (session?.user?.role !== "SUPER_ADMIN") {
-      setError("You do not have super admin privileges.");
-      setShake(true);
-      setTimeout(() => setShake(false), 600);
-      // Sign them out immediately
-      await fetch("/api/auth/signout", { method: "POST" });
-      return;
-    }
-
-    router.push("/admin/users");
-    router.refresh();
+    window.location.href = "/admin/users";
   }
 
   return (

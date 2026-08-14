@@ -30,13 +30,14 @@ export default function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
+      setLoading(false);
       toast.error("Invalid email or password");
       return;
     }
 
-    toast.success("Welcome back");
-    router.push(searchParams.get("callbackUrl") || "/admin");
-    router.refresh();
+    toast.success("Welcome back! Redirecting...");
+    const destination = searchParams.get("callbackUrl") || "/admin";
+    window.location.href = destination;
   }
 
   return (

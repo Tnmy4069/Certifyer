@@ -30,7 +30,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!parsed.success) return null;
 
           await connectDb();
-          const user = await User.findOne({ email: parsed.data.email.toLowerCase() });
+          let user = await User.findOne({ email: parsed.data.email.toLowerCase() });
+
+          if (!user) {
+            const { getEnv } = await import("@/lib/env");
+            const env = getEnv();
+            if (
+              parsed.data.email.toLowerCase() === env.SUPER_ADMIN_EMAIL.toLowerCase() &&
+              parsed.data.password === env.SUPER_ADMIN_PASSWORD
+            ) {
+              user = await User.create({
+                name: env.SUPER_ADMIN_NAME,
+                email: env.SUPER_ADMIN_EMAIL.toLowerCase(),
+                passwordHash: await bcrypt.hash(env.SUPER_ADMIN_PASSWORD, 12),
+                role: "SUPER_ADMIN",
+              });
+            }
+          }
+
           if (!user) return null;
 
           const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
@@ -59,7 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        session.user.id = (token.id as string) || (token.sub as string) || "";
         session.user.role = (token.role as string) || "ADMIN";
       }
       return session;

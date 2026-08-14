@@ -3,8 +3,11 @@ import dns from "node:dns";
 import { getEnv } from "@/lib/env";
 
 try {
-  dns.setDefaultResultOrder("ipv4first");
-  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  // Only override DNS in local development (avoid overriding inside Vercel / AWS Lambda VPCs)
+  if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    dns.setDefaultResultOrder("ipv4first");
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+  }
 } catch {}
 
 interface MongooseCache {
@@ -20,11 +23,6 @@ const cached: MongooseCache = global.mongooseCache || { conn: null, promise: nul
 global.mongooseCache = cached;
 
 export async function connectDb(): Promise<typeof mongoose> {
-  try {
-    dns.setDefaultResultOrder("ipv4first");
-    dns.setServers(["8.8.8.8", "8.8.4.4"]);
-  } catch {}
-
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
