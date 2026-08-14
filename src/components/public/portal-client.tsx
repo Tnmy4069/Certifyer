@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Award, Check, Copy, Download, ExternalLink, Layers, Share2 } from "lucide-react";
+import { Award, Check, Copy, Download, ExternalLink, Layers, Search, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,13 @@ type FoundCertificate = {
   organization?: string;
   department?: string;
   eventName: string;
+  eventSlug?: string;
   organizerName?: string;
   issuedAt?: string;
   pngUrl: string;
   pdfUrl?: string | null;
+  linkedinOrganizationId?: string;
+  linkedinCertificationName?: string;
 };
 
 type EventDetails = {
@@ -78,13 +81,17 @@ function buildLinkedinShareUrl(verifyUrl: string): string {
 
 export function PublicPortalClient({
   eventSlug,
-  eventName,
+  eventName = "Official Certificate Portal",
+  title = "Download your certificate",
+  subtitle,
   organizerName = "",
   linkedinOrganizationId = "",
   linkedinCertificationName = "",
 }: {
-  eventSlug: string;
-  eventName: string;
+  eventSlug?: string;
+  eventName?: string;
+  title?: string;
+  subtitle?: string;
   organizerName?: string;
   linkedinOrganizationId?: string;
   linkedinCertificationName?: string;
@@ -113,7 +120,10 @@ export function PublicPortalClient({
       const response = await fetch("/api/public/certificate/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventSlug, email }),
+        body: JSON.stringify({
+          ...(eventSlug ? { eventSlug } : {}),
+          email: email.trim(),
+        }),
       });
       const data = await response.json();
 
@@ -149,6 +159,8 @@ export function PublicPortalClient({
 
       if (list.length > 1) {
         toast.success(`Found ${list.length} certificates for your email!`);
+      } else {
+        toast.success("Certificate found!");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Lookup failed");
@@ -160,11 +172,12 @@ export function PublicPortalClient({
   function downloadUrl(cert: FoundCertificate, format: "png" | "pdf") {
     if (!cert || !accessToken) return "#";
     const params = new URLSearchParams({
-      eventSlug,
-      email,
+      email: email.trim(),
       token: accessToken,
       format,
     });
+    const slug = cert.eventSlug || eventSlug;
+    if (slug) params.set("eventSlug", slug);
     return `/api/public/certificate/${cert.certificateNumber}/download?${params.toString()}`;
   }
 
@@ -173,6 +186,7 @@ export function PublicPortalClient({
     : "";
 
   const certificationTitle =
+    activeCertificate?.linkedinCertificationName?.trim() ||
     eventData.linkedinCertificationName?.trim() ||
     (activeCertificate
       ? activeCertificate.role
@@ -180,11 +194,16 @@ export function PublicPortalClient({
         : `${activeCertificate.eventName} Certificate`
       : `${eventName} Certificate`);
 
+  const activeOrgId =
+    activeCertificate?.linkedinOrganizationId || eventData.linkedinOrganizationId;
+  const activeOrgName =
+    activeCertificate?.organizerName || eventData.organizerName || organizerName;
+
   const linkedinAddUrl = activeCertificate
     ? buildLinkedinAddUrl({
         certificationName: certificationTitle,
-        organizationId: eventData.linkedinOrganizationId,
-        organizationName: eventData.organizerName || activeCertificate.organizerName,
+        organizationId: activeOrgId,
+        organizationName: activeOrgName,
         issueDate: activeCertificate.issuedAt,
         certUrl: verifyPageUrl,
         certId: activeCertificate.certificateNumber,
@@ -215,53 +234,81 @@ export function PublicPortalClient({
     typeof window !== "undefined" &&
     (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
+  const displaySubtitle =
+    subtitle ??
+    (eventSlug
+      ? eventName
+      : "Enter your registration email to find, download, and verify your credentials.");
+
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col justify-center px-4 py-10">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl flex-col justify-center px-4 py-8 sm:py-12">
       <div className="mb-8 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Certify</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">Download your certificate</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{eventName}</p>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary shadow-md shadow-primary/20 text-lg font-bold text-primary-foreground">
+          <Award className="h-6 w-6" />
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary/80">Certify Portal</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl text-foreground">{title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">{displaySubtitle}</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Find certificate</CardTitle>
-          <CardDescription>Enter the email address used during registration.</CardDescription>
+      <Card className="shadow-lg border-border/80 bg-card/90 backdrop-blur">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Search className="h-4 w-4 text-primary" />
+            Find your certificate
+          </CardTitle>
+          <CardDescription>
+            Enter the email address you used during event registration.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
+              <Label htmlFor="email" className="text-xs font-medium">Email address</Label>
+              <div className="relative">
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="h-11 pl-3.5 pr-4 text-base sm:text-sm"
+                  autoComplete="email"
+                />
+              </div>
             </div>
-            <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Searching..." : "Find Certificate"}
+            <Button className="w-full h-11 text-sm font-medium shadow" type="submit" disabled={loading}>
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Searching &amp; Generating...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  Find Certificate
+                </span>
+              )}
             </Button>
           </form>
         </CardContent>
       </Card>
 
       {certificates.length > 0 && activeCertificate && (
-        <Card className="mt-6">
-          <CardHeader>
+        <Card className="mt-6 shadow-xl border-primary/20 animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <CardTitle>
+                <CardTitle className="text-lg font-semibold">
                   {certificates.length > 1
                     ? `Certificates Found (${certificates.length})`
                     : "Certificate Found"}
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs">
                   {certificates.length > 1
-                    ? "Multiple certificates are registered with your email. Select below:"
-                    : "Your certificate is ready to download."}
+                    ? "Multiple certificates are registered with your email. Select one below:"
+                    : "Your certificate is ready to download and share."}
                 </CardDescription>
               </div>
               {certificates.length > 1 && (
@@ -277,7 +324,7 @@ export function PublicPortalClient({
             {certificates.length > 1 && (
               <div className="space-y-2">
                 <Label className="text-xs font-semibold text-muted-foreground">Select Certificate:</Label>
-                <div className="flex flex-col gap-2">
+                <div className="grid gap-2">
                   {certificates.map((cert, index) => {
                     const isSelected = index === selectedIndex;
                     return (
@@ -287,29 +334,30 @@ export function PublicPortalClient({
                         onClick={() => setSelectedIndex(index)}
                         className={`flex items-center justify-between rounded-lg border p-3 text-left text-sm transition-all ${
                           isSelected
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
                             : "border-border bg-card hover:bg-muted/50"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                               isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                             }`}
                           >
                             <Award className="h-4 w-4" />
                           </div>
-                          <div>
-                            <p className="font-medium leading-none">
-                              {cert.role || `Certificate #${index + 1}`}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-xs sm:text-sm truncate">
+                              {cert.eventName}
                             </p>
-                            <p className="mt-1 text-xs text-muted-foreground font-mono">
-                              {cert.certificateNumber}
+                            <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+                              {cert.role && <span className="font-medium text-primary">{cert.role} ·</span>}
+                              <span className="font-mono text-[11px]">{cert.certificateNumber}</span>
                             </p>
                           </div>
                         </div>
                         {isSelected && (
-                          <Badge variant="default" className="text-[10px]">
+                          <Badge variant="default" className="text-[10px] shrink-0 ml-2">
                             Selected
                           </Badge>
                         )}
@@ -326,6 +374,10 @@ export function PublicPortalClient({
                 <span className="text-muted-foreground">Candidate:</span>{" "}
                 <span className="font-medium">{activeCertificate.candidateName}</span>
               </div>
+              <div>
+                <span className="text-muted-foreground">Event:</span>{" "}
+                <span className="font-medium">{activeCertificate.eventName}</span>
+              </div>
               {activeCertificate.role && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-muted-foreground">Role / Category:</span>
@@ -335,16 +387,13 @@ export function PublicPortalClient({
                 </div>
               )}
               <div>
-                <span className="text-muted-foreground">Event:</span> {activeCertificate.eventName}
-              </div>
-              <div>
                 <span className="text-muted-foreground">Certificate ID:</span>{" "}
                 <code className="text-xs font-mono font-semibold">{activeCertificate.certificateNumber}</code>
               </div>
             </div>
 
             {/* Certificate preview */}
-            <div className="overflow-hidden rounded-lg border bg-muted/30">
+            <div className="overflow-hidden rounded-lg border bg-muted/30 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={activeCertificate.pngUrl}
@@ -355,12 +404,12 @@ export function PublicPortalClient({
 
             {/* Download buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="h-10">
                 <a href={downloadUrl(activeCertificate, "png")}>
                   <Download className="mr-2 h-4 w-4" /> Download PNG
                 </a>
               </Button>
-              <Button asChild>
+              <Button asChild className="h-10">
                 <a href={downloadUrl(activeCertificate, "pdf")}>
                   <Download className="mr-2 h-4 w-4" /> Download PDF
                 </a>
@@ -379,12 +428,12 @@ export function PublicPortalClient({
               </div>
 
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Add this credential ({activeCertificate.role || "Certificate"}) to your LinkedIn{" "}
+                Add this credential ({activeCertificate.role || activeCertificate.eventName}) to your LinkedIn{" "}
                 <strong>Licenses &amp; Certifications</strong> profile section, or share a post with your network.
               </p>
 
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button asChild className="flex-1 bg-[#0A66C2] text-white hover:bg-[#004182]">
+                <Button asChild className="flex-1 bg-[#0A66C2] text-white hover:bg-[#004182] h-9">
                   <a href={linkedinAddUrl} target="_blank" rel="noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Add to Profile
@@ -394,7 +443,7 @@ export function PublicPortalClient({
                 <Button
                   asChild
                   variant="outline"
-                  className="border-[#0A66C2]/30 text-[#0A66C2] hover:bg-[#0A66C2]/10"
+                  className="border-[#0A66C2]/30 text-[#0A66C2] hover:bg-[#0A66C2]/10 h-9"
                 >
                   <a href={linkedinShareUrl} target="_blank" rel="noreferrer">
                     <Share2 className="mr-2 h-4 w-4" />

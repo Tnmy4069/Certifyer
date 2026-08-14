@@ -10,7 +10,7 @@ import { AuditEvent, Candidate, Certificate, Event } from "@/models";
 type Params = { params: Promise<{ certificateNumber: string }> };
 
 const querySchema = z.object({
-  eventSlug: z.string().min(1),
+  eventSlug: z.string().min(1).optional(),
   email: z.string().email(),
   token: z.string().min(10),
   format: z.enum(["png", "pdf"]),
@@ -25,14 +25,26 @@ export async function GET(request: NextRequest, { params }: Params) {
     const { certificateNumber } = await params;
     const { searchParams } = new URL(request.url);
     const query = querySchema.parse({
-      eventSlug: searchParams.get("eventSlug"),
+      eventSlug: searchParams.get("eventSlug") || undefined,
       email: searchParams.get("email"),
       token: searchParams.get("token"),
       format: searchParams.get("format"),
     });
 
     await connectDb();
-    const event = await Event.findOne({ slug: query.eventSlug, status: "PUBLISHED" });
+
+    // Find certificate
+    const certificate = await Certificate.findOne({
+      certificateNumber: certificateNumber.toUpperCase(),
+      status: "GENERATED",
+    });
+    if (!certificate) throw new AppError("Not found", 404);
+
+    const event = await Event.findOne({
+      _id: certificate.eventId,
+      ...(query.eventSlug ? { slug: query.eventSlug } : {}),
+      status: "PUBLISHED",
+    });
     if (!event) throw new AppError("Not found", 404);
 
     const access = await getCandidateAccessProvider().verifyAccess({
@@ -44,16 +56,6 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const candidates = await Candidate.find({ eventId: event._id, email: query.email.toLowerCase() }).select("_id");
     if (!candidates || candidates.length === 0) throw new AppError("Not found", 404);
-
-    const candidateIds = candidates.map((c) => c._id);
-
-    const certificate = await Certificate.findOne({
-      eventId: event._id,
-      candidateId: { $in: candidateIds },
-      certificateNumber: certificateNumber.toUpperCase(),
-      status: "GENERATED",
-    });
-    if (!certificate) throw new AppError("Not found", 404);
 
     const key = query.format === "png" ? certificate.pngKey : certificate.pdfKey;
     if (!key) throw new AppError("File not available", 404);
