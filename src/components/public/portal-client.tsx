@@ -205,13 +205,24 @@ export function PortalClient({
         });
       }
 
-      // Transition to Step 2: Choose Event
-      setCurrentStep("CHOOSE_EVENT");
-      toast.success(
-        list.length > 1
-          ? `Found ${list.length} events registered for you!`
-          : "Candidate registration found!"
-      );
+      // If single event, skip CHOOSE_EVENT step and go straight to feedback/certificate
+      if (list.length === 1) {
+        const single = list[0];
+        setSelectedIndex(0);
+        setRating(single.feedback?.rating ?? 5);
+        setRemark(single.feedback?.remark ?? "");
+
+        if (single.status === "GENERATED" && single.hasFeedback) {
+          setCurrentStep("CERTIFICATE");
+        } else {
+          setCurrentStep("FEEDBACK");
+        }
+        toast.success("Registration found!");
+      } else {
+        // Multiple events -> Show Choose Event screen
+        setCurrentStep("CHOOSE_EVENT");
+        toast.success(`Found ${list.length} events registered for you!`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Lookup failed");
     } finally {
@@ -318,10 +329,32 @@ export function PortalClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit feedback");
 
+      let updatedCert = cert;
+      if (cert.status !== "GENERATED") {
+        const genRes = await fetch("/api/public/certificate/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId: cert.eventId,
+            candidateId: cert.candidateId,
+            email,
+          }),
+        });
+        const genData = await genRes.json();
+        if (genRes.ok) {
+          if (genData.accessToken) setAccessToken(genData.accessToken);
+          if (genData.certificate) {
+            updatedCert = { ...cert, ...genData.certificate, status: "GENERATED" };
+          }
+        }
+      }
+
       setCertificates((prev) => {
         const next = [...prev];
         next[index] = {
           ...next[index],
+          ...updatedCert,
+          status: "GENERATED",
           hasFeedback: true,
           feedback: { rating, remark: remark.trim() },
         };
@@ -444,19 +477,25 @@ export function PortalClient({
             <Search className="h-3 w-3" />
             1. Search
           </button>
-          <ChevronRight className="h-3 w-3 text-slate-600" />
-          <button
-            type="button"
-            onClick={() => setCurrentStep("CHOOSE_EVENT")}
-            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
-              currentStep === "CHOOSE_EVENT"
-                ? "border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
-                : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
-            }`}
-          >
-            <Layers className="h-3 w-3" />
-            2. Choose Event
-          </button>
+          
+          {certificates.length > 1 && (
+            <>
+              <ChevronRight className="h-3 w-3 text-slate-600" />
+              <button
+                type="button"
+                onClick={() => setCurrentStep("CHOOSE_EVENT")}
+                className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
+                  currentStep === "CHOOSE_EVENT"
+                    ? "border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
+                    : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
+                }`}
+              >
+                <Layers className="h-3 w-3" />
+                2. Choose Event
+              </button>
+            </>
+          )}
+
           <ChevronRight className="h-3 w-3 text-slate-600" />
           <button
             type="button"
@@ -469,8 +508,9 @@ export function PortalClient({
             }`}
           >
             <Star className="h-3 w-3" />
-            3. Feedback
+            {certificates.length > 1 ? "3. Feedback" : "2. Feedback"}
           </button>
+
           <ChevronRight className="h-3 w-3 text-slate-600" />
           <button
             type="button"
@@ -483,7 +523,7 @@ export function PortalClient({
             }`}
           >
             <Award className="h-3 w-3" />
-            4. Certificate
+            {certificates.length > 1 ? "4. Certificate" : "3. Certificate"}
           </button>
         </div>
       )}
@@ -545,7 +585,7 @@ export function PortalClient({
       {/* ========================================================================= */}
       {/* STEP 2: CHOOSE EVENT */}
       {/* ========================================================================= */}
-      {currentStep === "CHOOSE_EVENT" && certificates.length > 0 && (
+      {currentStep === "CHOOSE_EVENT" && certificates.length > 1 && (
         <Card className="shadow-[0_0_50px_rgba(239,68,68,0.15)] border-red-500/30 bg-black/70 backdrop-blur-2xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600" />
           <CardHeader className="pb-4">
@@ -687,14 +727,14 @@ export function PortalClient({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentStep("CHOOSE_EVENT")}
+                onClick={() => setCurrentStep(certificates.length > 1 ? "CHOOSE_EVENT" : "SEARCH")}
                 className="text-xs text-slate-400 hover:text-white hover:bg-white/10 -ml-2"
               >
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                Back to Events
+                {certificates.length > 1 ? "Back to Events" : "Search Again"}
               </Button>
               <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-xs">
-                Step 3 of 4: Event Review
+                {certificates.length > 1 ? "Step 3 of 4: Event Review" : "Step 2 of 3: Event Review"}
               </Badge>
             </div>
           </CardHeader>
@@ -776,12 +816,14 @@ export function PortalClient({
               {submittingFeedback ? (
                 <span className="flex items-center gap-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
-                  Submitting Feedback...
+                  Submitting Feedback &amp; Unlocking Certificate...
                 </span>
               ) : (
                 <span className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Submit Feedback &amp; View Certificate
+                  {activeCertificate.status !== "GENERATED"
+                    ? "Submit Feedback & Generate Certificate"
+                    : "Submit Feedback & View Certificate"}
                 </span>
               )}
             </Button>
@@ -801,11 +843,13 @@ export function PortalClient({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentStep("CHOOSE_EVENT")}
+                onClick={() => setCurrentStep(certificates.length > 1 ? "CHOOSE_EVENT" : "SEARCH")}
                 className="text-xs text-slate-400 hover:text-white hover:bg-white/10 -ml-2"
               >
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                Back to All Events ({certificates.length})
+                {certificates.length > 1
+                  ? `Back to All Events (${certificates.length})`
+                  : "Search Another Profile"}
               </Button>
               <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs">
                 ✓ Certificate Unlocked

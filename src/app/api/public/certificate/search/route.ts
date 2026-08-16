@@ -101,6 +101,24 @@ export async function POST(request: NextRequest) {
     let primaryEventId = "";
 
     for (const candidate of candidateList) {
+      // Check if candidate is marked absent
+      const metadata = candidate.metadata || {};
+      let isAbsent = (candidate.role || "").toLowerCase().trim() === "absent";
+      for (const [k, v] of Object.entries(metadata)) {
+        const key = k.toLowerCase().trim();
+        const val = typeof v === "string" ? v.toLowerCase().trim() : v;
+        if (["attendance", "present", "attended", "status", "attendance_status", "is_present"].includes(key)) {
+          if (val === "absent" || val === "a" || val === "no" || val === false || val === "false" || val === "0") {
+            isAbsent = true;
+            break;
+          }
+        }
+      }
+
+      if (isAbsent) {
+        continue;
+      }
+
       const event = eventsMap.get(String(candidate.eventId));
       if (!event) continue;
       if (!primaryEventId) primaryEventId = String(event._id);
