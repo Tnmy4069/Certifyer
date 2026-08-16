@@ -22,44 +22,61 @@ export function FieldPanel({
   onQrChange,
 }: {
   qr: QrConfig;
-  onAddField: (source: string, label: string) => void;
+  onAddField: (source: string, label: string, customText?: string) => void;
   onQrChange: (qr: QrConfig) => void;
 }) {
   return (
     <Card className="h-fit overflow-hidden">
       <CardHeader className="border-b bg-muted/30 p-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm">Dynamic fields</CardTitle>
-          <Badge variant="outline">{palette.length + 1}</Badge>
+          <CardTitle className="text-sm font-semibold">Available fields</CardTitle>
+          <Badge variant="outline">{palette.length + 2}</Badge>
         </div>
-        <p className="text-xs text-muted-foreground">Add data placeholders to the certificate.</p>
+        <p className="text-xs text-muted-foreground">Add text blocks or dynamic placeholders.</p>
       </CardHeader>
       <CardContent className="space-y-5 p-4">
-        <div className="grid gap-2">
-          {palette.map(({ source, icon: Icon }) => {
-            const field = BUILTIN_FIELD_SOURCES.find((item) => item.source === source)!;
-            return (
-              <Button
-                key={source}
-                variant="outline"
-                className="h-10 justify-start gap-3 bg-background px-3 font-normal"
-                onClick={() => onAddField(field.source, field.label)}
-              >
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                {field.label}
-                <Plus className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-              </Button>
-            );
-          })}
+        {/* Custom Text Section */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Freeform / Static Text</p>
           <Button
             variant="outline"
-            className="h-10 justify-start gap-3 border-dashed bg-background px-3 font-normal"
-            onClick={() => onAddField("custom", "Custom Field")}
+            className="h-10 w-full justify-start gap-2.5 border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 font-medium text-xs shadow-sm"
+            onClick={() => onAddField("custom", "Certificate Title", "Certificate of Completion")}
           >
-            <Braces className="h-4 w-4 text-muted-foreground" />
-            Custom Field
-            <Plus className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+            <Type className="h-4 w-4" />
+            + Add Custom Static Text
           </Button>
+        </div>
+
+        {/* Dynamic Fields Section */}
+        <div className="space-y-2 pt-1 border-t">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground pt-2">Dynamic Data Fields</p>
+          <div className="grid gap-1.5">
+            {palette.map(({ source, icon: Icon }) => {
+              const field = BUILTIN_FIELD_SOURCES.find((item) => item.source === source)!;
+              return (
+                <Button
+                  key={source}
+                  variant="outline"
+                  className="h-9 justify-start gap-2.5 bg-background px-3 font-normal text-xs"
+                  onClick={() => onAddField(field.source, field.label)}
+                >
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                  {field.label}
+                  <Plus className="ml-auto h-3 w-3 text-muted-foreground" />
+                </Button>
+              );
+            })}
+            <Button
+              variant="outline"
+              className="h-9 justify-start gap-2.5 border-dashed bg-background px-3 font-normal text-xs"
+              onClick={() => onAddField("custom_field", "Custom Metadata")}
+            >
+              <Braces className="h-3.5 w-3.5 text-muted-foreground" />
+              Custom Metadata Field
+              <Plus className="ml-auto h-3 w-3 text-muted-foreground" />
+            </Button>
+          </div>
         </div>
 
         <div className="border-t pt-4">

@@ -4,134 +4,115 @@ import { AppError, jsonError, jsonOk, parseJson } from "@/lib/api";
 import { connectDb } from "@/lib/db";
 import { getCandidateAccessProvider } from "@/lib/candidate-access";
 import { ensureCertificateRecord } from "@/lib/certificates/ensure-cert";
-import { generateCertificateNow } from "@/lib/generation/generate";
 import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
-import { getStorage } from "@/lib/storage";
-import { getRequestOrigin } from "@/lib/utils";
-import { AuditEvent, Candidate, Certificate, Event } from "@/models";
+import { AuditEvent, Candidate, Certificate, Event, Feedback } from "@/models";
 
 const searchSchema = z.object({
   eventSlug: z.string().min(1).optional(),
-  email: z.string().email(),
+  email: z.string().min(1).optional(),
+  query: z.string().min(1).optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const limited = rateLimit(`public-search:${ip}`, 10, 60_000);
+    const limited = rateLimit(`public-search:${ip}`, 20, 60_000);
     if (!limited.ok) throw new AppError("Too many requests. Please try again shortly.", 429, "RATE_LIMITED");
 
     const body = searchSchema.parse(await parseJson(request));
+    const searchTerm = (body.query || body.email || "").trim();
+    if (!searchTerm) {
+      throw new AppError("Please provide an email or phone number to search.", 400, "VALIDATION_ERROR");
+    }
+
     await connectDb();
 
-    const emailLimited = rateLimit(`public-search-email:${body.email.toLowerCase()}`, 8, 60_000);
-    if (!emailLimited.ok) throw new AppError("Too many requests. Please try again shortly.", 429, "RATE_LIMITED");
+    const termLimited = rateLimit(`public-search-term:${searchTerm.toLowerCase()}`, 15, 60_000);
+    if (!termLimited.ok) throw new AppError("Too many requests. Please try again shortly.", 429, "RATE_LIMITED");
 
     const eventsMap = new Map<string, any>();
     const candidateList: any[] = [];
 
+    const searchFilter = searchTerm.includes("@")
+      ? { email: searchTerm.toLowerCase() }
+      : {
+          $or: [
+            { email: searchTerm.toLowerCase() },
+            { phone: searchTerm },
+          ],
+        };
+
     if (body.eventSlug) {
       const event = await Event.findOne({ slug: body.eventSlug, status: "PUBLISHED" });
       if (!event) {
-        throw new AppError("No certificate found for this email.", 404, "NOT_FOUND");
+        throw new AppError("Event not found or not published.", 404, "NOT_FOUND");
       }
       eventsMap.set(String(event._id), event);
-      const found = await Candidate.find({ eventId: event._id, email: body.email.toLowerCase() });
+      const found = await Candidate.find({ eventId: event._id, ...searchFilter });
       candidateList.push(...found);
     } else {
       // Global search across all published events
       const publishedEvents = await Event.find({ status: "PUBLISHED" });
       if (!publishedEvents.length) {
-        throw new AppError("No certificates found for this email.", 404, "NOT_FOUND");
+        throw new AppError("No published events found.", 404, "NOT_FOUND");
       }
       for (const ev of publishedEvents) {
         eventsMap.set(String(ev._id), ev);
       }
       const eventIds = publishedEvents.map((e) => e._id);
-      const found = await Candidate.find({ eventId: { $in: eventIds }, email: body.email.toLowerCase() });
+      const found = await Candidate.find({ eventId: { $in: eventIds }, ...searchFilter });
       candidateList.push(...found);
     }
 
     if (!candidateList || candidateList.length === 0) {
-      throw new AppError("No certificate found for this email.", 404, "NOT_FOUND");
+      throw new AppError("No registration records found for this identifying detail.", 404, "NOT_FOUND");
     }
 
-    const origin = getRequestOrigin(request);
-    const storage = getStorage();
+    const candidateIds = candidateList.map((c) => c._id);
+    const existingFeedbacks = await Feedback.find({ candidateId: { $in: candidateIds } }).lean();
+    const feedbackMap = new Map(existingFeedbacks.map((f) => [String(f.candidateId), f]));
+
     const certificatesList: Array<{
+      candidateId: string;
+      eventId: string;
+      certificateId: string;
       certificateNumber: string;
       candidateName: string;
+      candidateEmail: string;
+      candidatePhone?: string;
       role: string;
       organization: string;
       department: string;
       eventName: string;
       eventSlug: string;
       organizerName: string;
+      eventDate?: Date;
       issuedAt?: Date | null;
       pngUrl: string;
       pdfUrl?: string | null;
       linkedinOrganizationId?: string;
       linkedinCertificationName?: string;
+      status: string;
+      failureReason?: string | null;
+      hasFeedback: boolean;
+      feedback?: { rating: number; remark?: string } | null;
     }> = [];
 
-    let anyGenerating = false;
-    let maxRetryAfterMs = 5000;
     let primaryEventId = "";
 
     for (const candidate of candidateList) {
       const event = eventsMap.get(String(candidate.eventId));
       if (!event) continue;
-      primaryEventId = String(event._id);
+      if (!primaryEventId) primaryEventId = String(event._id);
 
-      let certificate = await ensureCertificateRecord(event._id, candidate._id);
+      // Ensure certificate record exists with status (default NOT_GENERATED)
+      const certificate = await ensureCertificateRecord(event._id, candidate._id);
 
       if (certificate.status === "REVOKED") {
         continue;
       }
 
-      if (certificate.status === "GENERATING") {
-        anyGenerating = true;
-        continue;
-      }
-
-      // Generate on-demand if not yet generated or previously failed
-      if (certificate.status !== "GENERATED") {
-        const result = await generateCertificateNow(String(certificate._id), {
-          actorType: "CANDIDATE",
-          actorId: candidate.email,
-          baseUrl: origin,
-        });
-
-        if (!result.ok) {
-          if (result.reason === "already_generating") {
-            anyGenerating = true;
-            maxRetryAfterMs = Math.max(maxRetryAfterMs, result.retryAfterMs);
-            continue;
-          }
-          console.error(`Generation failed for candidate ${candidate._id}:`, result.error);
-          continue;
-        }
-
-        certificate = (await Certificate.findById(certificate._id)) ?? certificate;
-      }
-
-      if (certificate.status === "GENERATED" && certificate.pngKey) {
-        certificatesList.push({
-          certificateNumber: certificate.certificateNumber,
-          candidateName: candidate.name,
-          role: candidate.role || "",
-          organization: candidate.organization || "",
-          department: candidate.department || "",
-          eventName: event.name,
-          eventSlug: event.slug,
-          organizerName: event.organizerName,
-          issuedAt: certificate.issuedAt,
-          pngUrl: storage.createSignedUrl(certificate.pngKey, 15 * 60),
-          pdfUrl: certificate.pdfKey ? storage.createSignedUrl(certificate.pdfKey, 15 * 60) : null,
-          linkedinOrganizationId: event.linkedinOrganizationId ?? "",
-          linkedinCertificationName: event.linkedinCertificationName ?? "",
-        });
-
+      if (certificate.status === "GENERATED") {
         await AuditEvent.create({
           eventId: event._id,
           certificateId: certificate._id,
@@ -140,32 +121,54 @@ export async function POST(request: NextRequest) {
           action: "certificate.lookup",
         });
       }
-    }
 
-    if (certificatesList.length === 0 && anyGenerating) {
-      return jsonOk(
-        {
-          status: "GENERATING",
-          message: "Your certificate is being generated. Please try again in a few seconds.",
-          retryAfterMs: maxRetryAfterMs,
-        },
-        { status: 202 }
-      );
+      const fb = feedbackMap.get(String(candidate._id));
+
+      certificatesList.push({
+        candidateId: String(candidate._id),
+        eventId: String(event._id),
+        certificateId: String(certificate._id),
+        certificateNumber: certificate.certificateNumber,
+        candidateName: candidate.name,
+        candidateEmail: candidate.email,
+        candidatePhone: candidate.phone || "",
+        role: candidate.role || "",
+        organization: candidate.organization || "",
+        department: candidate.department || "",
+        eventName: event.name,
+        eventSlug: event.slug,
+        organizerName: event.organizerName,
+        eventDate: event.eventDate,
+        issuedAt: certificate.issuedAt,
+        pngUrl: certificate.status === "GENERATED" ? `/api/public/certificate/${certificate.certificateNumber}/preview` : "",
+        pdfUrl: certificate.status === "GENERATED" ? `/api/public/certificate/${certificate.certificateNumber}/download?format=pdf` : null,
+        linkedinOrganizationId: event.linkedinOrganizationId ?? "",
+        linkedinCertificationName: event.linkedinCertificationName ?? "",
+        status: certificate.status,
+        failureReason: certificate.failureReason || null,
+        hasFeedback: Boolean(fb),
+        feedback: fb ? { rating: fb.rating, remark: fb.remark } : null,
+      });
     }
 
     if (certificatesList.length === 0) {
-      throw new AppError("No certificate found for this email.", 404, "NOT_FOUND");
+      throw new AppError("No available certificates or events found.", 404, "NOT_FOUND");
     }
 
+    const candidatePrimary = candidateList[0];
     const access = await getCandidateAccessProvider().requestAccess({
       eventId: primaryEventId,
-      email: body.email.toLowerCase(),
+      email: candidatePrimary.email.toLowerCase(),
     });
 
     const firstEvent = eventsMap.get(primaryEventId);
 
     return jsonOk({
       accessToken: access.token,
+      candidate: {
+        name: candidatePrimary.name,
+        email: candidatePrimary.email,
+      },
       certificates: certificatesList,
       certificate: certificatesList[0],
       event: firstEvent
@@ -181,3 +184,4 @@ export async function POST(request: NextRequest) {
     return jsonError(error);
   }
 }
+

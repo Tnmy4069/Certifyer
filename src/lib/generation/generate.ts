@@ -1,9 +1,7 @@
 import { connectDb } from "@/lib/db";
-import { getStorage } from "@/lib/storage";
 import { templateConfigSchema } from "@/lib/types";
 import { AuditEvent, Candidate, Certificate, CertificateTemplate, Event } from "@/models";
 import type { CertificateDocument } from "@/models/Certificate";
-import { renderCertificatePdf, renderCertificatePng, type RenderContext } from "@/lib/generation/render";
 
 /** How long a GENERATING lock is considered stale before another request can steal it */
 const LOCK_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -92,50 +90,11 @@ export async function generateCertificateNow(
     const candidate = await Candidate.findById(locked.candidateId);
     if (!candidate) throw new Error("Candidate not found");
 
-    const storage = getStorage();
-    const background = await storage.get(template.backgroundKey);
-    const configuration = templateConfigSchema.parse(template.configuration);
-
-    const context: RenderContext = {
-      candidate: {
-        name: candidate.name,
-        email: candidate.email,
-        phone: candidate.phone || "",
-        role: candidate.role || "",
-        organization: candidate.organization || "",
-        department: candidate.department || "",
-        metadata: (candidate.metadata as Record<string, unknown>) || {},
-      },
-      event: {
-        name: event.name,
-        organizerName: event.organizerName,
-        eventDate: event.eventDate,
-      },
-      certificateNumber: locked.certificateNumber,
-      baseUrl,
-    };
-
-    const png = await renderCertificatePng({
-      background,
-      width: template.width,
-      height: template.height,
-      configuration,
-      context,
-    });
-    const pdf = await renderCertificatePdf(png, template.width, template.height);
-
-    const pngKey = `events/${event._id}/certificates/${locked.certificateNumber}.png`;
-    const pdfKey = `events/${event._id}/certificates/${locked.certificateNumber}.pdf`;
-    await storage.put(pngKey, png, "image/png");
-    await storage.put(pdfKey, pdf, "application/pdf");
-
     const now = new Date();
     const updated = await Certificate.findByIdAndUpdate(
       certificateId,
       {
         $set: {
-          pngKey,
-          pdfKey,
           status: "GENERATED",
           issuedAt: locked.issuedAt || now,
           lastGeneratedAt: now,

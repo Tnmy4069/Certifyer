@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ImagePlus, Loader2, Minus, Plus, Save, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ImagePlus, Loader2, Minus, Plus, Save, Upload, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,23 @@ export type EditorTemplate = {
   configuration: TemplateConfig;
 };
 
+export type SampleCandidate = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  organization?: string;
+  department?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type EventPreviewData = {
+  name: string;
+  organizerName: string;
+  eventDate: Date | string | null;
+};
+
 const EMPTY_CONFIGURATION: TemplateConfig = {
   fields: [],
   qr: { enabled: false, x: 40, y: 40, size: 120 },
@@ -34,20 +51,63 @@ function apiError(data: unknown, fallback: string) {
 export function TemplateEditor({
   eventId,
   initialTemplate,
+  event,
+  sampleCandidates = [],
 }: {
   eventId: string;
   initialTemplate: EditorTemplate | null;
+  event?: EventPreviewData;
+  sampleCandidates?: SampleCandidate[];
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [template, setTemplate] = useState(initialTemplate);
   const [configuration, setConfiguration] = useState<TemplateConfig>(
     initialTemplate?.configuration ?? EMPTY_CONFIGURATION,
   );
+  const [selectedCandidateIndex, setSelectedCandidateIndex] = useState<number>(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  const liveValues = useMemo(() => {
+    if (!event) return undefined;
+    const candidate =
+      sampleCandidates && sampleCandidates.length > 0
+        ? sampleCandidates[selectedCandidateIndex] || sampleCandidates[0]
+        : null;
+
+    const d = event.eventDate ? new Date(event.eventDate) : new Date();
+    const dateFormatted = !isNaN(d.getTime())
+      ? d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      : "";
+    const year = !isNaN(d.getTime()) ? d.getFullYear() : new Date().getFullYear();
+
+    const values: Record<string, string> = {
+      event_name: event.name || "Event Name",
+      event_date: dateFormatted || "Event Date",
+      organizer: event.organizerName || "Organizer Name",
+      certificate_id: `CERT-${year}-00001`,
+      name: candidate?.name || "Candidate Name",
+      candidate_name: candidate?.name || "Candidate Name",
+      email: candidate?.email || "candidate@example.com",
+      phone: candidate?.phone || "+1 (555) 000-0000",
+      role: candidate?.role || "Participant",
+      organization: candidate?.organization || event.organizerName || "Organization",
+      department: candidate?.department || "General",
+    };
+
+    if (candidate?.metadata && typeof candidate.metadata === "object") {
+      for (const [k, v] of Object.entries(candidate.metadata)) {
+        if (v !== undefined && v !== null) {
+          values[k] = String(v);
+        }
+      }
+    }
+
+    return values;
+  }, [event, sampleCandidates, selectedCandidateIndex]);
 
   const selectedField = configuration.fields.find((field) => field.id === selectedId) ?? null;
 
@@ -96,14 +156,15 @@ export function TemplateEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [deleteSelected, duplicateSelected]);
 
-  function addField(source: string, label: string) {
+  function addField(source: string, label: string, customText?: string) {
     const width = template?.width ?? 1200;
     const height = template?.height ?? 800;
     const field: TemplateField = {
       id: crypto.randomUUID(),
       type: "text",
-      source: source === "custom" ? `custom_${Date.now()}` : source,
+      source: source === "custom" ? "custom" : source,
       label,
+      customText: customText ?? (source === "custom" ? "Certificate of Completion" : ""),
       x: Math.round(width * 0.25),
       y: Math.round(height * 0.45),
       width: Math.round(width * 0.5),
@@ -199,6 +260,23 @@ export function TemplateEditor({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {sampleCandidates.length > 0 && (
+              <div className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs">
+                <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-muted-foreground">Preview:</span>
+                <select
+                  value={selectedCandidateIndex}
+                  onChange={(e) => setSelectedCandidateIndex(Number(e.target.value))}
+                  className="bg-transparent font-medium text-xs focus:outline-none cursor-pointer"
+                >
+                  {sampleCandidates.map((c, idx) => (
+                    <option key={c.id || idx} value={idx}>
+                      {c.name} {c.role ? `(${c.role})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex items-center rounded-md border bg-background">
               <Button
                 type="button"
@@ -262,6 +340,7 @@ export function TemplateEditor({
             qr={configuration.qr}
             zoom={zoom}
             selectedId={selectedId}
+            liveValues={liveValues}
             onSelect={setSelectedId}
             onFieldChange={updateField}
           />

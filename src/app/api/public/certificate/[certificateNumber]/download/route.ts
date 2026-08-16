@@ -5,7 +5,10 @@ import { connectDb } from "@/lib/db";
 import { getCandidateAccessProvider } from "@/lib/candidate-access";
 import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
 import { getStorage } from "@/lib/storage";
-import { AuditEvent, Candidate, Certificate, Event } from "@/models";
+import { templateConfigSchema } from "@/lib/types";
+import { renderCertificatePng, renderCertificatePdf, type RenderContext } from "@/lib/generation/render";
+import { getRequestOrigin } from "@/lib/utils";
+import { AuditEvent, Candidate, Certificate, CertificateTemplate, Event } from "@/models";
 
 type Params = { params: Promise<{ certificateNumber: string }> };
 
@@ -54,14 +57,48 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
     if (!access.granted) throw new AppError("Access denied", 403);
 
-    const candidates = await Candidate.find({ eventId: event._id, email: query.email.toLowerCase() }).select("_id");
-    if (!candidates || candidates.length === 0) throw new AppError("Not found", 404);
+    const candidate = await Candidate.findOne({ _id: certificate.candidateId });
+    if (!candidate || candidate.email !== query.email.toLowerCase()) throw new AppError("Not found", 404);
 
-    const key = query.format === "png" ? certificate.pngKey : certificate.pdfKey;
-    if (!key) throw new AppError("File not available", 404);
+    const template = await CertificateTemplate.findOne({ eventId: event._id });
+    if (!template) throw new AppError("Template not found", 404);
 
     const storage = getStorage();
-    const data = await storage.get(key);
+    const background = await storage.get(template.backgroundKey);
+    const configuration = templateConfigSchema.parse(template.configuration);
+    const baseUrl = getRequestOrigin(request);
+
+    const context: RenderContext = {
+      candidate: {
+        name: candidate.name,
+        email: candidate.email,
+        phone: candidate.phone || "",
+        role: candidate.role || "",
+        organization: candidate.organization || "",
+        department: candidate.department || "",
+        metadata: (candidate.metadata as Record<string, unknown>) || {},
+      },
+      event: {
+        name: event.name,
+        organizerName: event.organizerName,
+        eventDate: event.eventDate,
+      },
+      certificateNumber: certificate.certificateNumber,
+      baseUrl,
+    };
+
+    const pngBuffer = await renderCertificatePng({
+      background,
+      width: template.width,
+      height: template.height,
+      configuration,
+      context,
+    });
+
+    let data: Uint8Array = pngBuffer;
+    if (query.format === "pdf") {
+      data = await renderCertificatePdf(pngBuffer, template.width, template.height);
+    }
 
     certificate.downloadCount += 1;
     await certificate.save();

@@ -32,7 +32,11 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-export function resolveFieldValue(source: string, ctx: RenderContext): string {
+export function resolveFieldValue(source: string, ctx: RenderContext, customText?: string): string {
+  if (source === "custom" || source.startsWith("custom") || source === "static") {
+    return customText || "";
+  }
+
   const metadata = ctx.candidate.metadata || {};
   const map: Record<string, string> = {
     name: ctx.candidate.name,
@@ -50,7 +54,7 @@ export function resolveFieldValue(source: string, ctx: RenderContext): string {
 
   if (map[source] !== undefined) return map[source];
   if (metadata[source] !== undefined && metadata[source] !== null) return String(metadata[source]);
-  return "";
+  return customText || "";
 }
 
 function fontFamilyCss(family: string): string {
@@ -90,7 +94,8 @@ function buildOverlaySvg(
 ): string {
   const textNodes = fields
     .map((field) => {
-      const value = escapeXml(resolveFieldValue(field.source, ctx) || field.label);
+      const resolved = resolveFieldValue(field.source, ctx, field.customText);
+      const value = escapeXml(resolved || field.customText || field.label);
       const x = textX(field);
       const y = field.y + field.fontSize;
       return `<text x="${x}" y="${y}" text-anchor="${textAnchor(field.align)}"

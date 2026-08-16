@@ -17,6 +17,7 @@ export const templateFieldSchema = z.object({
   type: z.literal("text").default("text"),
   label: z.string().min(1),
   source: z.string().min(1),
+  customText: z.string().default(""),
   x: z.number(),
   y: z.number(),
   width: z.number().positive(),

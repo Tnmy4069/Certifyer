@@ -3,12 +3,13 @@ import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { connectDb } from "@/lib/db";
 import { getOwnedEvent, serializeEvent } from "@/lib/events/helpers";
-import { CertificateTemplate, Candidate, Certificate } from "@/models";
+import { CertificateTemplate, Candidate, Certificate, Feedback } from "@/models";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { absoluteUrl, formatDate } from "@/lib/utils";
 import { EventActions } from "@/components/admin/event-actions";
 import { EventNav } from "@/components/admin/event-nav";
+import { Star } from "lucide-react";
 import Link from "next/link";
 
 type Params = { params: Promise<{ eventId: string }> };
@@ -26,11 +27,16 @@ export default async function EventDetailPage({ params }: Params) {
     notFound();
   }
 
-  const [template, candidateCount, certificates] = await Promise.all([
+  const [template, candidateCount, certificates, feedbacks] = await Promise.all([
     CertificateTemplate.findOne({ eventId: event._id }).lean(),
     Candidate.countDocuments({ eventId: event._id }),
     Certificate.find({ eventId: event._id }).sort({ createdAt: -1 }).limit(5).lean(),
+    Feedback.find({ eventId: event._id }).sort({ createdAt: -1 }).limit(10).lean(),
   ]);
+
+  const avgRating = feedbacks.length
+    ? (feedbacks.reduce((acc, f) => acc + f.rating, 0) / feedbacks.length).toFixed(1)
+    : "0.0";
 
   const serialized = serializeEvent(event);
   const headersList = await headers();
@@ -57,7 +63,7 @@ export default async function EventDetailPage({ params }: Params) {
 
       <EventNav eventId={eventId} />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardHeader>
             <CardDescription>Candidates</CardDescription>
@@ -80,6 +86,15 @@ export default async function EventDetailPage({ params }: Params) {
           <CardHeader>
             <CardDescription>Verifications</CardDescription>
             <CardTitle>{serialized.verificationCount}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Avg Rating ({feedbacks.length})</CardDescription>
+            <CardTitle className="flex items-center gap-1.5 text-amber-500">
+              <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+              {avgRating} <span className="text-xs font-normal text-muted-foreground">/ 5.0</span>
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -140,6 +155,69 @@ export default async function EventDetailPage({ params }: Params) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Candidate Ratings & Remarks Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+              Candidate Ratings &amp; Remarks
+            </CardTitle>
+            <CardDescription>
+              Feedback submitted by candidates before downloading their certificates.
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="text-sm">
+            {feedbacks.length} {feedbacks.length === 1 ? "Review" : "Reviews"}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          {feedbacks.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No ratings or feedback received yet.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {feedbacks.map((fb) => (
+                <div
+                  key={String(fb._id)}
+                  className="rounded-xl border bg-muted/20 p-4 space-y-2 text-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center text-amber-500">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-3.5 w-3.5 ${
+                            i < fb.rating
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-muted-foreground/30"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatDate(fb.createdAt)}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs">{fb.candidateName}</p>
+                    <p className="text-[11px] text-muted-foreground">{fb.candidateEmail}</p>
+                  </div>
+                  {fb.remark ? (
+                    <p className="text-xs text-foreground/90 italic bg-background/60 p-2 rounded-md border border-border/50">
+                      &ldquo;{fb.remark}&rdquo;
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground italic">No remark provided.</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

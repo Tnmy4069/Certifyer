@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  BUILTIN_FIELD_SOURCES,
   FONT_FAMILIES,
   TEXT_ALIGNS,
   type QrConfig,
@@ -91,23 +92,93 @@ export function PropertiesPanel({
         {field ? (
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="field-label" className="text-xs">Label</Label>
-              <Input
-                id="field-label"
-                value={field.label}
-                onChange={(event) => onFieldChange({ label: event.target.value })}
-                className="h-9"
-              />
+              <Label htmlFor="field-source-select" className="text-xs font-medium">Field Type / Source</Label>
+              <select
+                id="field-source-select"
+                value={
+                  ["name", "event_name", "event_date", "certificate_id", "role", "organization", "department", "organizer", "custom"].includes(field.source)
+                    ? field.source
+                    : "other"
+                }
+                onChange={(event) => {
+                  const val = event.target.value;
+                  if (val === "custom") {
+                    onFieldChange({ 
+                      source: "custom", 
+                      customText: field.customText || field.label || "Custom Text",
+                      label: field.label === "Candidate Name" ? "Custom Text" : field.label 
+                    });
+                  } else if (val === "other") {
+                    onFieldChange({ source: "custom_field" });
+                  } else {
+                    const matched = BUILTIN_FIELD_SOURCES.find((s) => s.source === val);
+                    onFieldChange({ source: val, label: matched?.label || field.label });
+                  }
+                }}
+                className="h-9 w-full rounded-md border bg-background px-3 text-sm font-medium"
+              >
+                <optgroup label="Static / Freeform Text">
+                  <option value="custom">✏️ Custom Static Text</option>
+                </optgroup>
+                <optgroup label="Dynamic Candidate & Event Data">
+                  <option value="name">Candidate Name</option>
+                  <option value="event_name">Event Name</option>
+                  <option value="event_date">Event Date</option>
+                  <option value="certificate_id">Certificate ID</option>
+                  <option value="role">Role / Position</option>
+                  <option value="organization">Organization</option>
+                  <option value="department">Department</option>
+                  <option value="organizer">Organizer Name</option>
+                  <option value="other">Custom Metadata Key...</option>
+                </optgroup>
+              </select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="field-source" className="text-xs">Data source</Label>
-              <Input
-                id="field-source"
-                value={field.source}
-                onChange={(event) => onFieldChange({ source: event.target.value })}
-                className="h-9 font-mono text-xs"
-              />
-            </div>
+
+            {/* Custom Textarea for Static Custom Text */}
+            {(field.source === "custom" || field.source.startsWith("custom_text") || field.source === "static") ? (
+              <div className="space-y-1.5 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="field-custom-text" className="text-xs font-semibold text-primary">
+                    Custom Text Content
+                  </Label>
+                  <span className="text-[10px] text-muted-foreground">Fixed on all certificates</span>
+                </div>
+                <textarea
+                  id="field-custom-text"
+                  value={field.customText ?? field.label ?? ""}
+                  onChange={(event) => {
+                    const text = event.target.value;
+                    onFieldChange({ customText: text, label: text.slice(0, 24) || "Custom Text" });
+                  }}
+                  placeholder="e.g. Certificate of Appreciation, For outstanding performance in, Authorized Signatory..."
+                  rows={3}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label htmlFor="field-label" className="text-xs">Field Label</Label>
+                <Input
+                  id="field-label"
+                  value={field.label}
+                  onChange={(event) => onFieldChange({ label: event.target.value })}
+                  className="h-9"
+                />
+              </div>
+            )}
+
+            {!["name", "event_name", "event_date", "certificate_id", "role", "organization", "department", "organizer", "custom"].includes(field.source) && (
+              <div className="space-y-1.5">
+                <Label htmlFor="field-source" className="text-xs">Custom Metadata Key</Label>
+                <Input
+                  id="field-source"
+                  value={field.source}
+                  onChange={(event) => onFieldChange({ source: event.target.value })}
+                  placeholder="e.g. score, track, batch"
+                  className="h-9 font-mono text-xs"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2 space-y-1.5">

@@ -30,6 +30,7 @@ export function TemplateCanvas({
   qr,
   zoom,
   selectedId,
+  liveValues,
   onSelect,
   onFieldChange,
 }: {
@@ -40,6 +41,7 @@ export function TemplateCanvas({
   qr: QrConfig;
   zoom: number;
   selectedId: string | null;
+  liveValues?: Record<string, string>;
   onSelect: (id: string | null) => void;
   onFieldChange: (id: string, patch: Partial<TemplateField>) => void;
 }) {
@@ -159,7 +161,12 @@ export function TemplateCanvas({
               }}
             >
               <span className="w-full truncate">
-                {SAMPLE_VALUES[field.source] ?? (field.source.startsWith("custom") ? "Custom value" : field.label)}
+                {field.source === "custom" || field.source.startsWith("custom") || field.source === "static"
+                  ? field.customText || field.label || "Custom Text"
+                  : liveValues?.[field.source] ||
+                    SAMPLE_VALUES[field.source] ||
+                    field.customText ||
+                    field.label}
               </span>
               {selected && (
                 <>

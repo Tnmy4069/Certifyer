@@ -7,7 +7,7 @@ import { connectDb } from "@/lib/db";
 import { getOwnedEvent } from "@/lib/events/helpers";
 import { getStorage } from "@/lib/storage";
 import { templateConfigSchema } from "@/lib/types";
-import { CertificateTemplate } from "@/models";
+import { Candidate, CertificateTemplate } from "@/models";
 
 type Params = { params: Promise<{ eventId: string }> };
 
@@ -24,7 +24,11 @@ export default async function EventTemplatePage({ params }: Params) {
     notFound();
   }
 
-  const template = await CertificateTemplate.findOne({ eventId: event._id }).lean();
+  const [template, candidates] = await Promise.all([
+    CertificateTemplate.findOne({ eventId: event._id }).lean(),
+    Candidate.find({ eventId: event._id }).limit(10).lean(),
+  ]);
+
   let editorTemplate: EditorTemplate | null = null;
   if (template) {
     editorTemplate = {
@@ -34,6 +38,17 @@ export default async function EventTemplatePage({ params }: Params) {
       configuration: templateConfigSchema.parse(template.configuration ?? {}),
     };
   }
+
+  const sampleCandidates = candidates.map((c) => ({
+    id: String(c._id),
+    name: c.name,
+    email: c.email,
+    phone: c.phone || "",
+    role: c.role || "",
+    organization: c.organization || "",
+    department: c.department || "",
+    metadata: (c.metadata as Record<string, unknown>) || {},
+  }));
 
   return (
     <div className="space-y-6">
@@ -53,7 +68,16 @@ export default async function EventTemplatePage({ params }: Params) {
       </div>
 
       <EventNav eventId={eventId} />
-      <TemplateEditor eventId={eventId} initialTemplate={editorTemplate} />
+      <TemplateEditor 
+        eventId={eventId} 
+        initialTemplate={editorTemplate} 
+        event={{
+          name: event.name,
+          organizerName: event.organizerName,
+          eventDate: event.eventDate,
+        }}
+        sampleCandidates={sampleCandidates}
+      />
     </div>
   );
 }

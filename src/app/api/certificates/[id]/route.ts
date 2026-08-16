@@ -5,15 +5,32 @@ import { connectDb } from "@/lib/db";
 import { generateCertificateNow } from "@/lib/generation/generate";
 import { getStorage } from "@/lib/storage";
 import { getRequestOrigin } from "@/lib/utils";
-import { AuditEvent, Certificate, Event } from "@/models";
+import { AuditEvent, Candidate, Certificate, Event } from "@/models";
 import mongoose from "mongoose";
 
 type Params = { params: Promise<{ id: string }> };
 
+import { ensureCertificateRecord } from "@/lib/certificates/ensure-cert";
+
 async function getAdminCertificate(id: string, userId: string) {
-  if (!mongoose.isValidObjectId(id)) throw new AppError("Certificate not found", 404);
-  const certificate = await Certificate.findById(id);
-  if (!certificate) throw new AppError("Certificate not found", 404);
+  let certificate;
+  
+  if (id.startsWith("candidate:")) {
+    const candidateId = id.replace("candidate:", "");
+    if (!mongoose.isValidObjectId(candidateId)) throw new AppError("Candidate not found", 404);
+    const candidate = await Candidate.findById(candidateId);
+    if (!candidate) throw new AppError("Candidate not found", 404);
+    
+    const event = await Event.findOne({ _id: candidate.eventId, createdBy: userId });
+    if (!event) throw new AppError("Candidate not found", 404);
+    
+    certificate = await ensureCertificateRecord(event._id, candidate._id);
+  } else {
+    if (!mongoose.isValidObjectId(id)) throw new AppError("Certificate not found", 404);
+    certificate = await Certificate.findById(id);
+    if (!certificate) throw new AppError("Certificate not found", 404);
+  }
+
   const event = await Event.findOne({ _id: certificate.eventId, createdBy: userId });
   if (!event) throw new AppError("Certificate not found", 404);
   return { certificate, event };

@@ -31,7 +31,7 @@ function safeEqual(a: string, b: string): boolean {
 export class EmailOnlyAccessProvider implements CandidateAccessProvider {
   async requestAccess(input: { eventId: string; email: string }): Promise<CandidateAccessResult> {
     const expires = Math.floor(Date.now() / 1000) + 15 * 60;
-    const payload = `${input.eventId}:${input.email.toLowerCase()}:${expires}`;
+    const payload = `${input.email.toLowerCase()}:${expires}`;
     const token = `${expires}.${sign(payload)}`;
     return { granted: true, token };
   }
@@ -43,7 +43,7 @@ export class EmailOnlyAccessProvider implements CandidateAccessProvider {
     if (!expires || !signature || expires * 1000 < Date.now()) {
       return { granted: false, reason: "Access expired" };
     }
-    const payload = `${input.eventId}:${input.email.toLowerCase()}:${expires}`;
+    const payload = `${input.email.toLowerCase()}:${expires}`;
     if (!safeEqual(sign(payload), signature)) {
       return { granted: false, reason: "Invalid access token" };
     }
