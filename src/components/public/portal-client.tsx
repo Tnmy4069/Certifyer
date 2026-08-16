@@ -629,7 +629,7 @@ export function PortalClient({
                         )
                       ) : (
                         <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs px-2.5 py-1 hidden sm:inline-flex shrink-0">
-                          Not Generated
+                          ⚡ Not Generated
                         </Badge>
                       )}
 
@@ -638,13 +638,31 @@ export function PortalClient({
                         type="button"
                         disabled={isGenerating}
                         onClick={() => handleSelectEvent(index)}
-                        className="h-9 px-3 sm:px-4 bg-gradient-to-r from-red-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-black font-bold text-xs shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all rounded-lg shrink-0 whitespace-nowrap"
+                        className={`h-9 px-3 sm:px-4 font-bold text-xs transition-all rounded-lg shrink-0 whitespace-nowrap ${
+                          !isGenerated
+                            ? "bg-gradient-to-r from-red-600 via-yellow-500 to-amber-500 hover:from-red-500 hover:to-amber-400 text-black shadow-[0_0_20px_rgba(234,179,8,0.35)]"
+                            : hasFeedback
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                            : "bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]"
+                        }`}
                       >
                         {isGenerating ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                          <span className="flex items-center gap-1.5">
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                            <span>Generating...</span>
+                          </span>
+                        ) : !isGenerated ? (
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            <span>Generate <span className="hidden sm:inline">Certificate</span></span>
+                          </span>
+                        ) : !hasFeedback ? (
+                          <span className="flex items-center gap-1">
+                            <span>Rate &amp; Claim</span> <ChevronRight className="h-3.5 w-3.5" />
+                          </span>
                         ) : (
                           <span className="flex items-center gap-1">
-                            Select <span className="hidden sm:inline">Event</span> <ChevronRight className="h-3.5 w-3.5" />
+                            <span>View Certificate</span> <ChevronRight className="h-3.5 w-3.5" />
                           </span>
                         )}
                       </Button>
