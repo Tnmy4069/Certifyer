@@ -1,23 +1,23 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { 
+import {
   ArrowLeft,
-  Award, 
-  Check, 
+  Award,
+  Check,
   ChevronRight,
-  Clock, 
-  Copy, 
-  Download, 
-  ExternalLink, 
-  Layers, 
+  Clock,
+  Copy,
+  Download,
+  ExternalLink,
+  Layers,
   MessageSquare,
-  RefreshCw, 
-  Search, 
-  Share2, 
-  Sparkles, 
+  RefreshCw,
+  Search,
+  Share2,
+  Sparkles,
   Star,
-  User 
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -181,8 +181,8 @@ export function PortalClient({
       const list: FoundCertificate[] = Array.isArray(data.certificates)
         ? data.certificates
         : data.certificate
-        ? [data.certificate]
-        : [];
+          ? [data.certificate]
+          : [];
 
       if (list.length === 0) {
         throw new Error("No certificate records found for this identifying detail.");
@@ -402,13 +402,13 @@ export function PortalClient({
 
   const linkedinAddUrl = activeCertificate && activeCertificate.status === "GENERATED"
     ? buildLinkedinAddUrl({
-        certificationName: certificationTitle,
-        organizationId: activeOrgId,
-        organizationName: activeOrgName,
-        issueDate: activeCertificate.issuedAt,
-        certUrl: verifyPageUrl,
-        certId: activeCertificate.certificateNumber,
-      })
+      certificationName: certificationTitle,
+      organizationId: activeOrgId,
+      organizationName: activeOrgName,
+      issueDate: activeCertificate.issuedAt,
+      certUrl: verifyPageUrl,
+      certId: activeCertificate.certificateNumber,
+    })
     : "";
 
   const linkedinShareUrl = activeCertificate && activeCertificate.status === "GENERATED"
@@ -416,9 +416,8 @@ export function PortalClient({
     : "";
 
   const shareCaption = activeCertificate && activeCertificate.status === "GENERATED"
-    ? `🎓 Excited to share that I have received my certificate for ${activeCertificate.eventName}${
-        activeCertificate.role ? ` (${activeCertificate.role})` : ""
-      }!\n\nVerify credential: ${verifyPageUrl}\n\n#certification #achievement #learning`
+    ? `🎓 Excited to share that I have received my certificate for ${activeCertificate.eventName}${activeCertificate.role ? ` (${activeCertificate.role})` : ""
+    }!\n\nVerify credential: ${verifyPageUrl}\n\n#certification #achievement #learning`
     : "";
 
   async function copyShareText() {
@@ -445,7 +444,7 @@ export function PortalClient({
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-2xl flex-col justify-center px-4 py-8 sm:py-12 relative z-10 text-slate-100">
-      
+
       {/* Header */}
       <div className="mb-8 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-yellow-500 shadow-[0_0_30px_rgba(239,68,68,0.4)] text-white">
@@ -468,27 +467,25 @@ export function PortalClient({
           <button
             type="button"
             onClick={() => setCurrentStep("SEARCH")}
-            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
-              currentStep === "SEARCH"
+            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${currentStep === "SEARCH"
                 ? "border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
                 : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
-            }`}
+              }`}
           >
             <Search className="h-3 w-3" />
             1. Search
           </button>
-          
+
           {certificates.length > 1 && (
             <>
               <ChevronRight className="h-3 w-3 text-slate-600" />
               <button
                 type="button"
                 onClick={() => setCurrentStep("CHOOSE_EVENT")}
-                className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
-                  currentStep === "CHOOSE_EVENT"
+                className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${currentStep === "CHOOSE_EVENT"
                     ? "border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
                     : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <Layers className="h-3 w-3" />
                 2. Choose Event
@@ -501,11 +498,10 @@ export function PortalClient({
             type="button"
             disabled={!activeCertificate}
             onClick={() => activeCertificate && setCurrentStep("FEEDBACK")}
-            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
-              currentStep === "FEEDBACK"
+            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${currentStep === "FEEDBACK"
                 ? "border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
                 : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
-            }`}
+              }`}
           >
             <Star className="h-3 w-3" />
             {certificates.length > 1 ? "3. Feedback" : "2. Feedback"}
@@ -516,11 +512,10 @@ export function PortalClient({
             type="button"
             disabled={!activeCertificate || !activeCertificate.hasFeedback}
             onClick={() => activeCertificate?.hasFeedback && setCurrentStep("CERTIFICATE")}
-            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${
-              currentStep === "CERTIFICATE"
+            className={`px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 ${currentStep === "CERTIFICATE"
                 ? "border-yellow-500 bg-yellow-500/20 text-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
                 : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
-            }`}
+              }`}
           >
             <Award className="h-3 w-3" />
             {certificates.length > 1 ? "4. Certificate" : "3. Certificate"}
@@ -560,9 +555,9 @@ export function PortalClient({
                   autoComplete="email"
                 />
               </div>
-              <Button 
-                className="w-full h-12 text-sm font-bold shadow-[0_0_20px_rgba(239,68,68,0.3)] bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-yellow-500 text-white transition-all duration-300 rounded-xl uppercase tracking-wider" 
-                type="submit" 
+              <Button
+                className="w-full h-12 text-sm font-bold shadow-[0_0_20px_rgba(239,68,68,0.3)] bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-yellow-500 text-white transition-all duration-300 rounded-xl uppercase tracking-wider"
+                type="submit"
                 disabled
               >
                 {loading ? (
@@ -573,7 +568,7 @@ export function PortalClient({
                 ) : (
                   <span className="flex items-center gap-2">
                     <Search className="h-4 w-4" />
-                    TEMPORARY DOWN! PLEASE TRY AFTER 9PM
+                    TEMPORARY DOWN! PLEASE TRY AFTER 9PM <b>TOMMOROW</b>
                   </span>
                 )}
               </Button>
@@ -625,11 +620,10 @@ export function PortalClient({
                   >
                     <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                       <div
-                        className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                          isGenerated
+                        className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${isGenerated
                             ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                             : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        }`}
+                          }`}
                       >
                         <Award className="h-5 w-5" />
                       </div>
@@ -678,13 +672,12 @@ export function PortalClient({
                         type="button"
                         disabled={isGenerating}
                         onClick={() => handleSelectEvent(index)}
-                        className={`h-9 px-3 sm:px-4 font-bold text-xs transition-all rounded-lg shrink-0 whitespace-nowrap ${
-                          !isGenerated
+                        className={`h-9 px-3 sm:px-4 font-bold text-xs transition-all rounded-lg shrink-0 whitespace-nowrap ${!isGenerated
                             ? "bg-gradient-to-r from-red-600 via-yellow-500 to-amber-500 hover:from-red-500 hover:to-amber-400 text-black shadow-[0_0_20px_rgba(234,179,8,0.35)]"
                             : hasFeedback
-                            ? "bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                            : "bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]"
-                        }`}
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                              : "bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-black shadow-[0_0_15px_rgba(234,179,8,0.3)]"
+                          }`}
                       >
                         {isGenerating ? (
                           <span className="flex items-center gap-1.5">
@@ -768,11 +761,10 @@ export function PortalClient({
                       aria-label={`Rate ${star} stars`}
                     >
                       <Star
-                        className={`h-11 w-11 transition-all duration-200 ${
-                          active
+                        className={`h-11 w-11 transition-all duration-200 ${active
                             ? "fill-yellow-400 text-yellow-400 drop-shadow-[0_0_14px_rgba(250,204,21,0.9)]"
                             : "text-slate-600 hover:text-slate-400"
-                        }`}
+                          }`}
                       />
                     </button>
                   );
@@ -837,7 +829,7 @@ export function PortalClient({
       {currentStep === "CERTIFICATE" && activeCertificate && (
         <Card className="shadow-[0_0_50px_rgba(239,68,68,0.15)] border-red-500/30 bg-black/70 backdrop-blur-2xl relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600" />
-          
+
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <Button
@@ -893,11 +885,10 @@ export function PortalClient({
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-3.5 w-3.5 ${
-                        i < (activeCertificate.feedback?.rating ?? 5)
+                      className={`h-3.5 w-3.5 ${i < (activeCertificate.feedback?.rating ?? 5)
                           ? "fill-yellow-400 text-yellow-400"
                           : "text-slate-600"
-                      }`}
+                        }`}
                     />
                   ))}
                 </div>
@@ -927,17 +918,17 @@ export function PortalClient({
 
             {/* Download PNG & PDF Buttons */}
             <div className="grid grid-cols-2 gap-4 pt-1">
-              <Button 
-                asChild={!!activeCertificate.pngUrl} 
-                variant="outline" 
+              <Button
+                asChild={!!activeCertificate.pngUrl}
+                variant="outline"
                 className="h-12 border-red-500/50 text-red-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-400 transition-all rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.1)] font-semibold"
               >
                 <a href={downloadUrl(activeCertificate, "png")}>
                   <Download className="mr-2 h-4.5 w-4.5" /> Download PNG
                 </a>
               </Button>
-              <Button 
-                asChild={!!activeCertificate.pdfUrl} 
+              <Button
+                asChild={!!activeCertificate.pdfUrl}
                 className="h-12 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-bold border-none transition-all rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.3)]"
               >
                 <a href={downloadUrl(activeCertificate, "pdf")}>
@@ -949,7 +940,7 @@ export function PortalClient({
             {/* LinkedIn Integration Section */}
             <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-5 space-y-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-              
+
               <div className="flex items-center gap-3 relative z-10">
                 <div className="bg-[#0A66C2] p-2 rounded-lg shadow-[0_0_15px_rgba(10,102,194,0.4)]">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true">
