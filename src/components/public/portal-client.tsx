@@ -563,7 +563,7 @@ export function PortalClient({
               <Button 
                 className="w-full h-12 text-sm font-bold shadow-[0_0_20px_rgba(239,68,68,0.3)] bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-yellow-500 text-white transition-all duration-300 rounded-xl uppercase tracking-wider" 
                 type="submit" 
-                disabled={loading}
+                disabled
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
@@ -573,7 +573,7 @@ export function PortalClient({
                 ) : (
                   <span className="flex items-center gap-2">
                     <Search className="h-4 w-4" />
-                    Search Across All Events
+                    TEMPORARY DOWN! PLEASE TRY AFTER 9PM
                   </span>
                 )}
               </Button>
