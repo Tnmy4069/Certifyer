@@ -52,7 +52,7 @@ export async function enqueueCertificateGeneration(options: {
     }
     certificates = await Certificate.find({
       eventId: event._id,
-      status: { $in: ["PENDING", "FAILED"] },
+      status: { $in: ["NOT_GENERATED", "PENDING", "FAILED"] },
     });
   }
 

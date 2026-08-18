@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { requireAdmin } from "@/auth";
 import { AppError, jsonCreated, jsonError, jsonOk, parseJson } from "@/lib/api";
 import { connectDb } from "@/lib/db";
-import { serializeEvent } from "@/lib/events/helpers";
+import { eventAccessFilter, serializeEvent } from "@/lib/events/helpers";
 import { slugify } from "@/lib/utils";
 import { createEventSchema } from "@/lib/validators/event";
 import { Event } from "@/models";
@@ -11,7 +11,9 @@ export async function GET() {
   try {
     const session = await requireAdmin();
     await connectDb();
-    const events = await Event.find({ createdBy: session.user.id }).sort({ createdAt: -1 });
+    const events = await Event.find(eventAccessFilter(session.user.id, session.user.role))
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
     return jsonOk({ events: events.map(serializeEvent) });
   } catch (error) {
     return jsonError(error);

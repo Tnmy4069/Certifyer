@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Loader2, Minus, Plus, Save, Upload, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { ImagePlus, Loader2, Minus, Plus, Save, Upload, UserCheck, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,11 +54,13 @@ export function TemplateEditor({
   initialTemplate,
   event,
   sampleCandidates = [],
+  setupNextHref,
 }: {
   eventId: string;
   initialTemplate: EditorTemplate | null;
   event?: EventPreviewData;
   sampleCandidates?: SampleCandidate[];
+  setupNextHref?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [template, setTemplate] = useState(initialTemplate);
@@ -372,6 +375,35 @@ export function TemplateEditor({
           </span>
         </button>
       )}
+
+      {setupNextHref ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-900">
+              {template ? "Template ready" : "Upload a background to continue"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {template
+                ? "Next, generate certificates for the imported candidates."
+                : "You can still skip, but certificates need a template first."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {template ? (
+              <Button asChild className="rounded-xl">
+                <Link href={setupNextHref}>
+                  Continue to certificates
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="outline" className="rounded-xl">
+                <Link href={setupNextHref}>Skip for now</Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

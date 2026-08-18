@@ -15,7 +15,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
     const template = await CertificateTemplate.findOne({ eventId: event._id });
     if (!template) return jsonOk({ template: null });
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
 
     const form = await request.formData();
     const file = form.get("background");
@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
     const body = await request.json();
     const configuration = templateConfigSchema.parse(body.configuration ?? body);
 

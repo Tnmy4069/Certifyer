@@ -38,6 +38,19 @@ export function formatShortDate(value?: Date | string | null): string {
   }).format(date);
 }
 
+export function formatDateTime(value?: Date | string | null): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 /**
  * Resolves the base URL dynamically.
  * Works across multiple domains, localhost, custom domains, Vercel preview URLs, etc.

@@ -13,7 +13,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
     const template = await CertificateTemplate.findOne({ eventId: event._id }).lean();
     return jsonOk({
       event: serializeEvent(event),
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const body = await parseJson<unknown>(request);
     const data = updateEventSchema.parse(body);
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
 
     if (data.name !== undefined) event.name = data.name;
     if (data.description !== undefined) event.description = data.description;

@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EventNav } from "@/components/admin/event-nav";
+import { EventSetupStepper } from "@/components/admin/event-setup-stepper";
+import { Progress } from "@/components/ui/progress";
 
 type CertificateRow = {
   id: string;
@@ -20,6 +24,15 @@ type CertificateRow = {
   pdfUrl?: string | null;
 };
 
+type BatchProgress = {
+  id: string;
+  status: string;
+  total: number;
+  completed: number;
+  failed: number;
+  percent: number;
+};
+
 function statusVariant(status: string): "success" | "destructive" | "warning" | "muted" | "outline" {
   if (status === "GENERATED") return "success";
   if (status === "FAILED") return "destructive";
@@ -28,13 +41,15 @@ function statusVariant(status: string): "success" | "destructive" | "warning" | 
   return "outline";
 }
 
-export function CertificatesManager({ eventId }: { eventId: string }) {
+export function CertificatesManager({ eventId, setup = false }: { eventId: string; setup?: boolean }) {
   const [certificates, setCertificates] = useState<CertificateRow[]>([]);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   // Track which cert IDs are currently being actioned
   const [actioning, setActioning] = useState<Set<string>>(new Set());
+  const [batch, setBatch] = useState<BatchProgress | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -66,6 +81,52 @@ export function CertificatesManager({ eventId }: { eventId: string }) {
     () => certificates.filter((c) => c.status === "NOT_GENERATED" || c.status === "PENDING").length,
     [certificates]
   );
+  const failedCount = useMemo(
+    () => certificates.filter((c) => c.status === "FAILED").length,
+    [certificates]
+  );
+
+  async function refreshBatch() {
+    const response = await fetch(`/api/events/${eventId}/generate`);
+    const data = await response.json();
+    if (response.ok) setBatch(data.batch ?? null);
+    return (data.batch ?? null) as BatchProgress | null;
+  }
+
+  async function runQueue(initial: BatchProgress | null) {
+    let current = initial;
+    let idle = 0;
+    while (current && current.status !== "COMPLETED" && current.status !== "FAILED") {
+      const tickResponse = await fetch("/api/worker/tick", { method: "POST" });
+      const tickData = await tickResponse.json();
+      current = await refreshBatch();
+      if (!tickData.processed) idle += 1;
+      else idle = 0;
+      if (idle >= 6) break;
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    }
+    await load();
+  }
+
+  async function startBulk(onlyFailed: boolean) {
+    setBulkBusy(true);
+    try {
+      const response = await fetch(`/api/events/${eventId}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onlyFailed }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not start generation");
+      setBatch(data.batch ?? null);
+      toast.success(onlyFailed ? "Retrying failed certificates" : "Bulk generation started");
+      await runQueue(data.batch ?? null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not start generation");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   async function act(id: string, action: "generate" | "regenerate" | "revoke" | "restore") {
     setActioning((prev) => new Set(prev).add(id));
@@ -113,17 +174,66 @@ export function CertificatesManager({ eventId }: { eventId: string }) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Certificates</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review, generate, revoke, and download certificates.
+            {setup
+              ? "Step 4 of 4 — generate certificates for imported candidates."
+              : "Review, generate, revoke, and download certificates."}
             {notGeneratedCount > 0 ? (
               <span className="ml-2 text-muted-foreground">
-                ({notGeneratedCount} pending — will be generated when candidates request them)
+                ({notGeneratedCount} pending)
               </span>
             ) : null}
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            disabled={bulkBusy || failedCount === 0}
+            onClick={() => void startBulk(true)}
+          >
+            {bulkBusy ? "Working…" : `Retry failed (${failedCount})`}
+          </Button>
+          <Button
+            className="rounded-xl"
+            disabled={bulkBusy || (notGeneratedCount === 0 && failedCount === 0)}
+            onClick={() => void startBulk(false)}
+          >
+            {bulkBusy ? "Generating…" : "Generate all"}
+          </Button>
+        </div>
       </div>
 
-      <EventNav eventId={eventId} />
+      {setup ? <EventSetupStepper eventId={eventId} current="certificates" /> : <EventNav eventId={eventId} />}
+
+      {setup ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-900">Last step</p>
+            <p className="text-xs text-slate-500">Generate certificates, then open the event overview when you are done.</p>
+          </div>
+          <Button asChild variant="outline" className="rounded-xl">
+            <Link href={`/admin/events/${eventId}`}>
+              Finish setup
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : null}
+
+      {batch && (bulkBusy || batch.status === "QUEUED" || batch.status === "PROCESSING") ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bulk generation</CardTitle>
+            <CardDescription>
+              {batch.completed} completed · {batch.failed} failed · {batch.total} total
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Progress value={batch.percent} />
+            <p className="mt-2 text-xs text-muted-foreground">{batch.percent}% · {batch.status}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

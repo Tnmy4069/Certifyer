@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, FileSpreadsheet, Loader2, Plus, Upload, X } from "lucide-react";
+import Link from "next/link";
+import { Download, FileSpreadsheet, Loader2, Plus, Upload, X, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   invalidRowsToCsv,
@@ -44,9 +45,11 @@ const targets: Array<{ value: Target; label: string }> = [
 export function CsvImportWizard({
   eventId,
   initialCandidates,
+  setupNextHref,
 }: {
   eventId: string;
   initialCandidates: CandidateListItem[];
+  setupNextHref?: string;
 }) {
   const [stage, setStage] = useState<Stage>("upload");
   const [parsed, setParsed] = useState<ParsedCsv | null>(null);
@@ -526,6 +529,21 @@ export function CsvImportWizard({
           ) : null}
         </CardContent>
       </Card>
+
+      {setupNextHref && candidates.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-900">{candidates.length} candidate{candidates.length === 1 ? "" : "s"} ready</p>
+            <p className="text-xs text-slate-500">Next, design the certificate template.</p>
+          </div>
+          <Button asChild className="rounded-xl">
+            <Link href={setupNextHref}>
+              Continue to template
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

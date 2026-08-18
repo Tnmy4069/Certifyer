@@ -15,7 +15,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { id } = await params;
     const body = candidateImportSchema.parse(await parseJson<unknown>(request));
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
     const existingCandidates = await Candidate.find({ eventId: event._id }).select("email role name").lean();
     const existingKeys = existingCandidates.map(
       (c) => `${c.email.toLowerCase()}:::${(c.role || "").toLowerCase()}:::${c.name.toLowerCase()}`

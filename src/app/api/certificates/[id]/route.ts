@@ -12,18 +12,23 @@ type Params = { params: Promise<{ id: string }> };
 
 import { ensureCertificateRecord } from "@/lib/certificates/ensure-cert";
 
-async function getAdminCertificate(id: string, userId: string) {
+async function getAdminCertificate(id: string, userId: string, role?: string) {
   let certificate;
-  
+  const eventFilter = (eventId: mongoose.Types.ObjectId) =>
+    (role === "SUPER_ADMIN" ? { _id: eventId } : { _id: eventId, createdBy: userId }) as {
+      _id: mongoose.Types.ObjectId;
+      createdBy?: string;
+    };
+
   if (id.startsWith("candidate:")) {
     const candidateId = id.replace("candidate:", "");
     if (!mongoose.isValidObjectId(candidateId)) throw new AppError("Candidate not found", 404);
     const candidate = await Candidate.findById(candidateId);
     if (!candidate) throw new AppError("Candidate not found", 404);
-    
-    const event = await Event.findOne({ _id: candidate.eventId, createdBy: userId });
+
+    const event = await Event.findOne(eventFilter(candidate.eventId));
     if (!event) throw new AppError("Candidate not found", 404);
-    
+
     certificate = await ensureCertificateRecord(event._id, candidate._id);
   } else {
     if (!mongoose.isValidObjectId(id)) throw new AppError("Certificate not found", 404);
@@ -31,7 +36,7 @@ async function getAdminCertificate(id: string, userId: string) {
     if (!certificate) throw new AppError("Certificate not found", 404);
   }
 
-  const event = await Event.findOne({ _id: certificate.eventId, createdBy: userId });
+  const event = await Event.findOne(eventFilter(certificate.eventId));
   if (!event) throw new AppError("Certificate not found", 404);
   return { certificate, event };
 }
@@ -41,7 +46,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const { certificate, event } = await getAdminCertificate(id, session.user.id);
+    const { certificate, event } = await getAdminCertificate(id, session.user.id, session.user.role);
 
     const storage = getStorage();
     return jsonOk({
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const { certificate, event } = await getAdminCertificate(id, session.user.id);
+    const { certificate, event } = await getAdminCertificate(id, session.user.id, session.user.role);
     const body = await parseJson<{ action: "generate" | "regenerate" | "revoke" | "restore" }>(request);
 
     if (body.action === "revoke") {

@@ -39,8 +39,8 @@ export default function NewEventPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to create event");
-      toast.success("Event created");
-      router.push(`/admin/events/${data.event.id}`);
+      toast.success("Event created. Next: import candidates.");
+      router.push(`/admin/events/${data.event.id}/candidates?setup=1`);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create event");
@@ -52,14 +52,16 @@ export default function NewEventPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Create Event</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Set up the basics, then design your certificate template.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Create event</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          First add event details, then import candidates, design the template, and generate certificates.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Event details</CardTitle>
-          <CardDescription>These details appear on certificates and the public portal.</CardDescription>
+          <CardDescription>These details appear on certificates and the public portal. Candidates come next.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
@@ -104,7 +106,7 @@ export default function NewEventPage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create Event"}
+                {loading ? "Creating..." : "Save and import candidates"}
               </Button>
             </div>
           </form>

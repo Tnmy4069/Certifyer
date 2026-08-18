@@ -12,7 +12,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     const session = await requireAdmin();
     const { id } = await params;
     await connectDb();
-    const event = await getOwnedEvent(id, session.user.id);
+    const event = await getOwnedEvent(id, session.user.id, session.user.role);
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");

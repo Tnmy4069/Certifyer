@@ -1,8 +1,12 @@
 import { CertificatesManager } from "@/components/admin/certificates-manager";
 
-type Params = { params: Promise<{ eventId: string }> };
+type Params = {
+  params: Promise<{ eventId: string }>;
+  searchParams: Promise<{ setup?: string }>;
+};
 
-export default async function CertificatesPage({ params }: Params) {
+export default async function CertificatesPage({ params, searchParams }: Params) {
   const { eventId } = await params;
-  return <CertificatesManager eventId={eventId} />;
+  const { setup } = await searchParams;
+  return <CertificatesManager eventId={eventId} setup={setup === "1"} />;
 }

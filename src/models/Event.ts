@@ -1,5 +1,6 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from "mongoose";
 import { EVENT_STATUSES } from "@/lib/types";
+import "./User";
 
 const EventSchema = new Schema(
   {

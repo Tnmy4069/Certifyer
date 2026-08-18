@@ -1,27 +1,38 @@
 import { auth } from "@/auth";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { AdminMobileNav } from "@/components/admin/mobile-nav";
+import { AdminTopbar } from "@/components/admin/topbar";
 import { redirect } from "next/navigation";
+import "./admin.css";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <div className="hidden md:block">
+    <div className="admin-shell flex min-h-screen">
+      <div className="sticky top-0 hidden h-screen md:block">
         <AdminSidebar userName={session.user.name} role={session.user.role} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b bg-card px-4 py-3 md:hidden">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-              C
+        <header className="space-y-3 border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-xs font-bold text-white">
+                C
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Certify</p>
+                <p className="text-[11px] text-slate-500">{session.user.name}</p>
+              </div>
             </div>
-            <span className="text-sm font-semibold">Certify</span>
           </div>
-          <span className="text-xs text-muted-foreground">{session.user.name}</span>
+          <AdminMobileNav role={session.user.role} />
         </header>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <AdminTopbar userName={session.user.name} role={session.user.role} />
+        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
+        </main>
       </div>
     </div>
   );

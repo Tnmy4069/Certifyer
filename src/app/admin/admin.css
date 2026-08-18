@@ -1,0 +1,78 @@
+.admin-shell {
+  --admin-accent: #4f46e5;
+  --admin-accent-soft: #eef2ff;
+  --admin-ink: #0f172a;
+  background:
+    radial-gradient(900px 280px at 0% -10%, rgba(79, 70, 229, 0.09), transparent 55%),
+    radial-gradient(700px 240px at 100% 0%, rgba(14, 165, 233, 0.06), transparent 50%),
+    #f5f7fb;
+  color: var(--admin-ink);
+}
+
+.admin-shell a:focus-visible,
+.admin-shell button:focus-visible,
+.admin-shell input:focus-visible,
+.admin-shell select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--admin-accent) 55%, white);
+  outline-offset: 2px;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 720px;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.admin-table thead {
+  color: #64748b;
+}
+
+.admin-table th {
+  padding: 0.75rem 0.85rem 0.75rem 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-table td {
+  padding: 0.9rem 0.85rem 0.9rem 0;
+  vertical-align: middle;
+}
+
+.admin-table tbody tr {
+  border-bottom: 1px solid #eef2f7;
+  transition: background-color 0.15s ease;
+}
+
+.admin-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.admin-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.admin-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.admin-chip:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.admin-chip-active {
+  border-color: #0f172a;
+  background: #0f172a;
+  color: #fff;
+}

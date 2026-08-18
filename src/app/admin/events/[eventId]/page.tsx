@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { connectDb } from "@/lib/db";
-import { getOwnedEvent, serializeEvent } from "@/lib/events/helpers";
+import { getOwnedEvent, serializeEvent, eventOwnerLabel } from "@/lib/events/helpers";
 import { CertificateTemplate, Candidate, Certificate, Feedback } from "@/models";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,7 @@ export default async function EventDetailPage({ params }: Params) {
   await connectDb();
   let event;
   try {
-    event = await getOwnedEvent(eventId, session.user.id);
+    event = await getOwnedEvent(eventId, session.user.id, session.user.role);
   } catch {
     notFound();
   }
@@ -47,18 +47,25 @@ export default async function EventDetailPage({ params }: Params) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">{event.name}</h1>
-            <Badge variant={event.status === "PUBLISHED" ? "success" : "outline"}>{event.status}</Badge>
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{event.name}</h1>
+              <Badge variant={event.status === "PUBLISHED" ? "success" : "outline"}>{event.status}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              {event.organizerName} · {formatDate(event.eventDate)}
+              {event.location ? ` · ${event.location}` : ""}
+            </p>
+            {session.user.role === "SUPER_ADMIN" ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Created by {eventOwnerLabel(event.createdBy) ?? "Unknown owner"}
+              </p>
+            ) : null}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {event.organizerName} · {formatDate(event.eventDate)}
-            {event.location ? ` · ${event.location}` : ""}
-          </p>
+          <EventActions eventId={String(event._id)} status={event.status} publicUrl={publicUrl} />
         </div>
-        <EventActions eventId={String(event._id)} status={event.status} publicUrl={publicUrl} />
       </div>
 
       <EventNav eventId={eventId} />
@@ -106,13 +113,14 @@ export default async function EventDetailPage({ params }: Params) {
             <CardDescription>Complete these steps to publish certificates.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            <Step done={true} label="Event details" href={`/admin/events/${eventId}/settings`} />
+            <Step done={candidateCount > 0} label="Import candidates" href={`/admin/events/${eventId}/candidates`} />
             <Step done={Boolean(template)} label="Upload certificate background" href={`/admin/events/${eventId}/template`} />
             <Step
               done={Boolean(template?.configuration?.fields?.length)}
               label="Design template fields"
               href={`/admin/events/${eventId}/template`}
             />
-            <Step done={candidateCount > 0} label="Import candidates CSV" href={`/admin/events/${eventId}/candidates`} />
             <Step
               done={serialized.generatedCount > 0}
               label="Generate certificates"
@@ -168,9 +176,14 @@ export default async function EventDetailPage({ params }: Params) {
               Feedback submitted by candidates before downloading their certificates.
             </CardDescription>
           </div>
-          <Badge variant="outline" className="text-sm">
-            {feedbacks.length} {feedbacks.length === 1 ? "Review" : "Reviews"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-sm">
+              {feedbacks.length} {feedbacks.length === 1 ? "Review" : "Reviews"}
+            </Badge>
+            <Link href={`/admin/events/${eventId}/feedback`} className="text-sm text-muted-foreground hover:underline">
+              View all
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           {feedbacks.length === 0 ? (

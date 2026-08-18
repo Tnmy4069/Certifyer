@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { EventNav } from "@/components/admin/event-nav";
+import { EventSetupStepper } from "@/components/admin/event-setup-stepper";
 import { TemplateEditor, type EditorTemplate } from "@/components/template-editor/template-editor";
 import { Badge } from "@/components/ui/badge";
 import { connectDb } from "@/lib/db";
@@ -9,17 +10,22 @@ import { getStorage } from "@/lib/storage";
 import { templateConfigSchema } from "@/lib/types";
 import { Candidate, CertificateTemplate } from "@/models";
 
-type Params = { params: Promise<{ eventId: string }> };
+type Params = {
+  params: Promise<{ eventId: string }>;
+  searchParams: Promise<{ setup?: string }>;
+};
 
-export default async function EventTemplatePage({ params }: Params) {
+export default async function EventTemplatePage({ params, searchParams }: Params) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const { eventId } = await params;
+  const { setup } = await searchParams;
+  const isSetup = setup === "1";
 
   await connectDb();
   let event;
   try {
-    event = await getOwnedEvent(eventId, session.user.id);
+    event = await getOwnedEvent(eventId, session.user.id, session.user.role);
   } catch {
     notFound();
   }
@@ -61,13 +67,15 @@ export default async function EventTemplatePage({ params }: Params) {
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Design the personalized certificate issued for {event.name}.
+            {isSetup
+              ? "Step 3 of 4 — upload a background, place fields, then continue to certificate generation."
+              : `Design the personalized certificate issued for ${event.name}.`}
           </p>
         </div>
         <p className="text-xs text-muted-foreground">Tip: press Delete to remove a selected field.</p>
       </div>
 
-      <EventNav eventId={eventId} />
+      {isSetup ? <EventSetupStepper eventId={eventId} current="template" /> : <EventNav eventId={eventId} />}
       <TemplateEditor 
         eventId={eventId} 
         initialTemplate={editorTemplate} 
@@ -77,6 +85,7 @@ export default async function EventTemplatePage({ params }: Params) {
           eventDate: event.eventDate,
         }}
         sampleCandidates={sampleCandidates}
+        setupNextHref={isSetup ? `/admin/events/${eventId}/certificates?setup=1` : undefined}
       />
     </div>
   );
