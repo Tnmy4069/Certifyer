@@ -72,7 +72,7 @@ async function getFontBase64(): Promise<string> {
     }
     
     // Fallback for Vercel production if file is not bundled
-    const res = await fetch("https://cdn.jsdelivr.net/gh/rsms/inter@master/docs/font-files/Inter-Regular.ttf");
+    const res = await fetch("https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf");
     if (!res.ok) throw new Error(`Failed to fetch font: ${res.statusText}`);
     const arrayBuffer = await res.arrayBuffer();
     cachedFontBase64 = Buffer.from(arrayBuffer).toString("base64");
@@ -129,22 +129,26 @@ async function buildOverlaySvg(
     if (field.align === "left") justifyContent = "flex-start";
     else if (field.align === "right") justifyContent = "flex-end";
     
+    const style: any = {
+      position: "absolute",
+      left: field.x,
+      top: field.y,
+      width: field.width,
+      display: "flex",
+      justifyContent,
+      fontFamily: "Inter",
+      fontSize: field.fontSize,
+      fontWeight: field.fontWeight || 400,
+      color: field.color,
+    };
+    if (field.letterSpacing) {
+      style.letterSpacing = `${field.letterSpacing}px`;
+    }
+    
     return {
       type: "div",
       props: {
-        style: {
-          position: "absolute",
-          left: field.x,
-          top: field.y,
-          width: field.width,
-          display: "flex",
-          justifyContent,
-          fontFamily: "Inter",
-          fontSize: field.fontSize,
-          fontWeight: field.fontWeight || 400,
-          color: field.color,
-          letterSpacing: field.letterSpacing ? `${field.letterSpacing}px` : undefined,
-        },
+        style,
         children: value
       }
     };
