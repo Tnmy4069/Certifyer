@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import sharp from "sharp";
 import fs from "fs";
 import path from "path";
+import satori from "satori";
 import { absoluteUrl, formatDate } from "@/lib/utils";
 import type { TemplateConfig, TemplateField } from "@/lib/types";
 
@@ -109,7 +110,7 @@ function textX(field: TemplateField): number {
   return field.x + field.width / 2;
 }
 
-function buildOverlaySvg(
+async function buildOverlaySvg(
   width: number,
   height: number,
   fields: TemplateField[],
@@ -117,38 +118,88 @@ function buildOverlaySvg(
   qrDataUrl?: string | null,
   qr?: TemplateConfig["qr"],
   fontBase64?: string
-): string {
-  const styleNode = fontBase64
-    ? `<style>
-      @font-face {
-        font-family: 'Inter';
-        src: url(data:font/ttf;base64,${fontBase64});
+): Promise<string> {
+  const fontBuffer = fontBase64 ? Buffer.from(fontBase64, "base64") : Buffer.alloc(0);
+  
+  const children: any[] = fields.map((field) => {
+    const resolved = resolveFieldValue(field.source, ctx, field.customText);
+    const value = resolved || field.customText || field.label;
+    
+    let justifyContent = "center";
+    if (field.align === "left") justifyContent = "flex-start";
+    else if (field.align === "right") justifyContent = "flex-end";
+    
+    return {
+      type: "div",
+      props: {
+        style: {
+          position: "absolute",
+          left: field.x,
+          top: field.y,
+          width: field.width,
+          display: "flex",
+          justifyContent,
+          fontFamily: "Inter",
+          fontSize: field.fontSize,
+          fontWeight: field.fontWeight || 400,
+          color: field.color,
+          letterSpacing: field.letterSpacing ? `${field.letterSpacing}px` : undefined,
+        },
+        children: value
       }
-    </style>`
-    : "";
+    };
+  });
 
-  const textNodes = fields
-    .map((field) => {
-      const resolved = resolveFieldValue(field.source, ctx, field.customText);
-      const value = escapeXml(resolved || field.customText || field.label);
-      const x = textX(field);
-      const y = field.y + field.fontSize;
-      return `<text x="${x}" y="${y}" text-anchor="${textAnchor(field.align)}"
-        font-family="${escapeXml(fontFamilyCss(field.fontFamily))}"
-        font-size="${field.fontSize}"
-        font-weight="${field.fontWeight}"
-        fill="${escapeXml(field.color)}"
-        letter-spacing="${field.letterSpacing}"
-        style="dominant-baseline: alphabetic;">${value}</text>`;
-    })
-    .join("\n");
+  if (qr?.enabled && qrDataUrl) {
+    children.push({
+      type: "img",
+      props: {
+        src: qrDataUrl,
+        style: {
+          position: "absolute",
+          left: qr.x,
+          top: qr.y,
+          width: qr.size,
+          height: qr.size
+        }
+      }
+    });
+  }
 
-  const qrNode =
-    qr?.enabled && qrDataUrl
-      ? `<image href="${qrDataUrl}" x="${qr.x}" y="${qr.y}" width="${qr.size}" height="${qr.size}" />`
-      : "";
-
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${styleNode}${textNodes}${qrNode}</svg>`;
+  const svg = await satori(
+    {
+      type: "div",
+      props: {
+        style: {
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          display: "flex"
+        },
+        children
+      }
+    },
+    {
+      width,
+      height,
+      fonts: [
+        {
+          name: "Inter",
+          data: fontBuffer,
+          weight: 400,
+          style: "normal"
+        },
+        {
+          name: "Inter",
+          data: fontBuffer,
+          weight: 700,
+          style: "normal"
+        }
+      ]
+    }
+  );
+  
+  return svg;
 }
 
 export async function renderCertificatePng(options: {
@@ -173,7 +224,7 @@ export async function renderCertificatePng(options: {
   }
 
   const fontBase64 = await getFontBase64();
-  const svg = buildOverlaySvg(width, height, configuration.fields || [], context, qrDataUrl, configuration.qr, fontBase64);
+  const svg = await buildOverlaySvg(width, height, configuration.fields || [], context, qrDataUrl, configuration.qr, fontBase64);
 
   return sharp(background)
     .resize(width, height, { fit: "fill" })
