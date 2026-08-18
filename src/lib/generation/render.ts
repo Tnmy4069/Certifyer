@@ -64,14 +64,8 @@ let cachedFontBase64: string | null = null;
 async function getFontBase64(): Promise<string> {
   if (cachedFontBase64) return cachedFontBase64;
   try {
-    const fontPath = path.join(process.cwd(), "public", "fonts", "Inter-Regular.ttf");
-    if (fs.existsSync(fontPath)) {
-      const fontData = fs.readFileSync(fontPath);
-      cachedFontBase64 = fontData.toString("base64");
-      return cachedFontBase64;
-    }
-    
-    // Fallback for Vercel production if file is not bundled
+    // Bypass local file system to avoid any corrupted file issues on Vercel
+    // Fetch a reliable TTF font on cold start and cache it in memory
     const res = await fetch("https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf");
     if (!res.ok) throw new Error(`Failed to fetch font: ${res.statusText}`);
     const arrayBuffer = await res.arrayBuffer();
