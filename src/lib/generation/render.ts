@@ -1,6 +1,8 @@
 import { PDFDocument } from "pdf-lib";
 import QRCode from "qrcode";
 import sharp from "sharp";
+import fs from "fs";
+import path from "path";
 import { absoluteUrl, formatDate } from "@/lib/utils";
 import type { TemplateConfig, TemplateField } from "@/lib/types";
 
@@ -57,16 +59,30 @@ export function resolveFieldValue(source: string, ctx: RenderContext, customText
   return customText || "";
 }
 
+let cachedFontBase64: string | null = null;
+function getFontBase64(): string {
+  if (cachedFontBase64) return cachedFontBase64;
+  try {
+    const fontPath = path.join(process.cwd(), "public", "fonts", "Inter-Regular.ttf");
+    const fontData = fs.readFileSync(fontPath);
+    cachedFontBase64 = fontData.toString("base64");
+  } catch (err) {
+    console.error("Failed to load font:", err);
+    cachedFontBase64 = "";
+  }
+  return cachedFontBase64;
+}
+
 function fontFamilyCss(family: string): string {
   switch (family) {
     case "Georgia":
-      return "Georgia, serif";
+      return "Georgia, Inter, serif";
     case "Times New Roman":
-      return "'Times New Roman', Times, serif";
+      return "'Times New Roman', Inter, Times, serif";
     case "Courier New":
-      return "'Courier New', Courier, monospace";
+      return "'Courier New', Inter, Courier, monospace";
     case "Arial":
-      return "Arial, Helvetica, sans-serif";
+      return "Arial, Inter, Helvetica, sans-serif";
     default:
       return "Inter, Arial, Helvetica, sans-serif";
   }
@@ -92,6 +108,16 @@ function buildOverlaySvg(
   qrDataUrl?: string | null,
   qr?: TemplateConfig["qr"]
 ): string {
+  const fontBase64 = getFontBase64();
+  const styleNode = fontBase64
+    ? `<style>
+      @font-face {
+        font-family: 'Inter';
+        src: url(data:font/ttf;base64,${fontBase64});
+      }
+    </style>`
+    : "";
+
   const textNodes = fields
     .map((field) => {
       const resolved = resolveFieldValue(field.source, ctx, field.customText);
@@ -113,7 +139,7 @@ function buildOverlaySvg(
       ? `<image href="${qrDataUrl}" x="${qr.x}" y="${qr.y}" width="${qr.size}" height="${qr.size}" />`
       : "";
 
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${textNodes}${qrNode}</svg>`;
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${styleNode}${textNodes}${qrNode}</svg>`;
 }
 
 export async function renderCertificatePng(options: {
