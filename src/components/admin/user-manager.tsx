@@ -2,6 +2,14 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogRoot,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +30,93 @@ type UserRow = {
   role: "ADMIN" | "SUPER_ADMIN";
   createdAt: string;
 };
+
+function ResetPasswordDialog({ user }: { user: UserRow }) {
+  const [open, setOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  async function resetPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const password = String(values.get("password") || "");
+    const confirmation = String(values.get("confirmation") || "");
+
+    if (password !== confirmation) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const response = await fetch(`/api/users/${user.id}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not reset password");
+
+      form.reset();
+      setOpen(false);
+      toast.success(`Password reset for ${user.email}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not reset password");
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  return (
+    <AlertDialogRoot open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm">
+          Reset password
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogTitle>Reset password</AlertDialogTitle>
+        <AlertDialogDescription>
+          Set a new password for {user.name} ({user.email}).
+        </AlertDialogDescription>
+        <form className="mt-5 space-y-4" onSubmit={resetPassword}>
+          <div className="space-y-2">
+            <Label htmlFor={`password-${user.id}`}>New password</Label>
+            <Input
+              id={`password-${user.id}`}
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              maxLength={128}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`confirmation-${user.id}`}>Confirm password</Label>
+            <Input
+              id={`confirmation-${user.id}`}
+              name="confirmation"
+              type="password"
+              required
+              minLength={8}
+              maxLength={128}
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <AlertDialogCancel type="button" disabled={resetting}>
+              Cancel
+            </AlertDialogCancel>
+            <Button type="submit" disabled={resetting}>
+              {resetting ? "Resetting..." : "Reset password"}
+            </Button>
+          </div>
+        </form>
+      </AlertDialogContent>
+    </AlertDialogRoot>
+  );
+}
 
 export function UserManager() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -142,6 +237,7 @@ export function UserManager() {
                     <th className="pb-3 font-medium">Email</th>
                     <th className="pb-3 font-medium">Role</th>
                     <th className="pb-3 font-medium">Created</th>
+                    <th className="pb-3 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -160,6 +256,13 @@ export function UserManager() {
                       </td>
                       <td className="py-3 text-muted-foreground">
                         {formatShortDate(user.createdAt)}
+                      </td>
+                      <td className="py-3 text-right">
+                        {user.role === "ADMIN" ? (
+                          <ResetPasswordDialog user={user} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

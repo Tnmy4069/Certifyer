@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "seed:superadmin": "tsx scripts/seed-super-admin.ts",
+    "fix:candidate-indexes": "tsx scripts/fix-candidate-indexes.ts",
     "worker": "tsx scripts/generation-worker.ts"
   },
   "dependencies": {
