@@ -60,12 +60,21 @@ export function resolveFieldValue(source: string, ctx: RenderContext, customText
 }
 
 let cachedFontBase64: string | null = null;
-function getFontBase64(): string {
+async function getFontBase64(): Promise<string> {
   if (cachedFontBase64) return cachedFontBase64;
   try {
     const fontPath = path.join(process.cwd(), "public", "fonts", "Inter-Regular.ttf");
-    const fontData = fs.readFileSync(fontPath);
-    cachedFontBase64 = fontData.toString("base64");
+    if (fs.existsSync(fontPath)) {
+      const fontData = fs.readFileSync(fontPath);
+      cachedFontBase64 = fontData.toString("base64");
+      return cachedFontBase64;
+    }
+    
+    // Fallback for Vercel production if file is not bundled
+    const res = await fetch("https://cdn.jsdelivr.net/gh/rsms/inter@master/docs/font-files/Inter-Regular.ttf");
+    if (!res.ok) throw new Error(`Failed to fetch font: ${res.statusText}`);
+    const arrayBuffer = await res.arrayBuffer();
+    cachedFontBase64 = Buffer.from(arrayBuffer).toString("base64");
   } catch (err) {
     console.error("Failed to load font:", err);
     cachedFontBase64 = "";
@@ -106,9 +115,9 @@ function buildOverlaySvg(
   fields: TemplateField[],
   ctx: RenderContext,
   qrDataUrl?: string | null,
-  qr?: TemplateConfig["qr"]
+  qr?: TemplateConfig["qr"],
+  fontBase64?: string
 ): string {
-  const fontBase64 = getFontBase64();
   const styleNode = fontBase64
     ? `<style>
       @font-face {
@@ -163,7 +172,8 @@ export async function renderCertificatePng(options: {
     });
   }
 
-  const svg = buildOverlaySvg(width, height, configuration.fields || [], context, qrDataUrl, configuration.qr);
+  const fontBase64 = await getFontBase64();
+  const svg = buildOverlaySvg(width, height, configuration.fields || [], context, qrDataUrl, configuration.qr, fontBase64);
 
   return sharp(background)
     .resize(width, height, { fit: "fill" })
