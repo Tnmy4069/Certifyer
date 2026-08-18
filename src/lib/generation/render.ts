@@ -178,7 +178,7 @@ async function buildOverlaySvg(
         },
         children
       }
-    },
+    } as any,
     {
       width,
       height,
