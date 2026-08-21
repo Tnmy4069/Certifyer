@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { TemplateConfig, TemplateField } from "@/lib/types";
-import { TemplateCanvas } from "./canvas";
+import { QR_SELECTION_ID, TemplateCanvas } from "./canvas";
 import { FieldPanel } from "./field-panel";
 import { PropertiesPanel } from "./properties-panel";
 
@@ -115,7 +115,7 @@ export function TemplateEditor({
   const selectedField = configuration.fields.find((field) => field.id === selectedId) ?? null;
 
   const deleteSelected = useCallback(() => {
-    if (!selectedId) return;
+    if (!selectedId || selectedId === QR_SELECTION_ID) return;
     setConfiguration((current) => ({
       ...current,
       fields: current.fields.filter((field) => field.id !== selectedId),
@@ -125,7 +125,7 @@ export function TemplateEditor({
   }, [selectedId]);
 
   const duplicateSelected = useCallback(() => {
-    if (!selectedId) return;
+    if (!selectedId || selectedId === QR_SELECTION_ID) return;
     setConfiguration((current) => {
       const source = current.fields.find((field) => field.id === selectedId);
       if (!source) return current;
@@ -346,6 +346,13 @@ export function TemplateEditor({
             liveValues={liveValues}
             onSelect={setSelectedId}
             onFieldChange={updateField}
+            onQrChange={(patch) => {
+              setConfiguration((current) => ({
+                ...current,
+                qr: { ...current.qr, ...patch },
+              }));
+              setDirty(true);
+            }}
           />
           <PropertiesPanel
             field={selectedField}

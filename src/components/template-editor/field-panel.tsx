@@ -107,7 +107,7 @@ export function FieldPanel({
                 </button>
               </div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Adds a scannable verification area. Position and size it from the properties panel.
+                Adds a scannable verification area. Drag it on the canvas, or fine-tune x / y / size in properties.
               </p>
             </div>
           </div>

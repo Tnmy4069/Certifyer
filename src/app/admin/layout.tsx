@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminMobileNav } from "@/components/admin/mobile-nav";
+import { NavigationProgress } from "@/components/admin/navigation-progress";
 import { AdminTopbar } from "@/components/admin/topbar";
 import { redirect } from "next/navigation";
 import "./admin.css";
@@ -11,6 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="admin-shell flex min-h-screen">
+      <NavigationProgress />
       <div className="sticky top-0 hidden h-screen md:block">
         <AdminSidebar userName={session.user.name} role={session.user.role} />
       </div>

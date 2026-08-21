@@ -21,16 +21,18 @@ export async function GET(request: NextRequest, { params }: Params) {
     // Fetch all candidates and certificates for the event
     const [candidates, certs] = await Promise.all([
       Candidate.find({ eventId: event._id }).lean(),
-      Certificate.find({ eventId: event._id }).lean()
+      Certificate.find({ eventId: event._id }).lean(),
     ]);
 
-    const certMapByCandidateId = new Map(certs.map(c => [String(c.candidateId), c]));
+    const certMapByCandidateId = new Map(certs.map((c) => [String(c.candidateId), c]));
 
-    let results = candidates.map(candidate => {
+    let results = candidates.map((candidate) => {
       const cert = certMapByCandidateId.get(String(candidate._id));
       if (cert) {
+        const generated = cert.status === "GENERATED";
+        const certId = String(cert._id);
         return {
-          id: String(cert._id),
+          id: certId,
           certificateNumber: cert.certificateNumber,
           status: cert.status,
           issuedAt: cert.issuedAt,
@@ -38,36 +40,38 @@ export async function GET(request: NextRequest, { params }: Params) {
           downloadCount: cert.downloadCount,
           failureReason: cert.failureReason,
           candidate: { id: String(candidate._id), name: candidate.name, email: candidate.email },
-          pngUrl: `/api/public/certificate/${cert.certificateNumber}/preview`,
-          pdfUrl: `/api/public/certificate/${cert.certificateNumber}/download?format=pdf`,
+          // Admin-auth download route (re-renders when stored files are missing).
+          pngUrl: generated ? `/api/certificates/${certId}/download?format=png` : null,
+          pdfUrl: generated ? `/api/certificates/${certId}/download?format=pdf` : null,
           createdAt: cert.createdAt || candidate.createdAt,
         };
-      } else {
-        return {
-          id: `candidate:${candidate._id}`,
-          certificateNumber: "—",
-          status: "NOT_GENERATED",
-          issuedAt: null,
-          revokedAt: null,
-          downloadCount: 0,
-          failureReason: null,
-          candidate: { id: String(candidate._id), name: candidate.name, email: candidate.email },
-          pngUrl: null,
-          pdfUrl: null,
-          createdAt: candidate.createdAt,
-        };
       }
+
+      return {
+        id: `candidate:${candidate._id}`,
+        certificateNumber: "—",
+        status: "NOT_GENERATED",
+        issuedAt: null,
+        revokedAt: null,
+        downloadCount: 0,
+        failureReason: null,
+        candidate: { id: String(candidate._id), name: candidate.name, email: candidate.email },
+        pngUrl: null,
+        pdfUrl: null,
+        createdAt: candidate.createdAt,
+      };
     });
 
     if (status) {
-      results = results.filter(r => r.status === status);
+      results = results.filter((r) => r.status === status);
     }
 
     if (q) {
-      results = results.filter(r => 
-        r.candidate.name.toLowerCase().includes(q) ||
-        r.candidate.email.toLowerCase().includes(q) ||
-        r.certificateNumber.toLowerCase().includes(q)
+      results = results.filter(
+        (r) =>
+          r.candidate.name.toLowerCase().includes(q) ||
+          r.candidate.email.toLowerCase().includes(q) ||
+          r.certificateNumber.toLowerCase().includes(q),
       );
     }
 
@@ -78,10 +82,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
 
     return jsonOk({
-      certificates: results.map(r => {
+      certificates: results.map((r) => {
         const { createdAt, ...rest } = r;
         return rest;
-      })
+      }),
     });
   } catch (error) {
     return jsonError(error);

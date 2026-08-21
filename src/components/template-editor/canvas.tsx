@@ -14,13 +14,26 @@ const SAMPLE_VALUES: Record<string, string> = {
   custom: "Custom value",
 };
 
-type Interaction = {
+export const QR_SELECTION_ID = "__qr__";
+
+type FieldInteraction = {
+  target: "field";
   kind: "drag" | "resize";
   fieldId: string;
   startClientX: number;
   startClientY: number;
   initial: Pick<TemplateField, "x" | "y" | "width" | "height">;
 };
+
+type QrInteraction = {
+  target: "qr";
+  kind: "drag" | "resize";
+  startClientX: number;
+  startClientY: number;
+  initial: Pick<QrConfig, "x" | "y" | "size">;
+};
+
+type Interaction = FieldInteraction | QrInteraction;
 
 export function TemplateCanvas({
   backgroundUrl,
@@ -33,6 +46,7 @@ export function TemplateCanvas({
   liveValues,
   onSelect,
   onFieldChange,
+  onQrChange,
 }: {
   backgroundUrl: string;
   originalWidth: number;
@@ -44,6 +58,7 @@ export function TemplateCanvas({
   liveValues?: Record<string, string>;
   onSelect: (id: string | null) => void;
   onFieldChange: (id: string, patch: Partial<TemplateField>) => void;
+  onQrChange: (patch: Partial<QrConfig>) => void;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(900);
@@ -68,16 +83,19 @@ export function TemplateCanvas({
     [fields, selectedId],
   );
 
-  function beginInteraction(
+  const qrSelected = selectedId === QR_SELECTION_ID;
+
+  function beginFieldInteraction(
     event: ReactPointerEvent,
     field: TemplateField,
-    kind: Interaction["kind"],
+    kind: FieldInteraction["kind"],
   ) {
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     onSelect(field.id);
     setInteraction({
+      target: "field",
       kind,
       fieldId: field.id,
       startClientX: event.clientX,
@@ -86,20 +104,56 @@ export function TemplateCanvas({
     });
   }
 
+  function beginQrInteraction(event: ReactPointerEvent, kind: QrInteraction["kind"]) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onSelect(QR_SELECTION_ID);
+    setInteraction({
+      target: "qr",
+      kind,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      initial: { x: qr.x, y: qr.y, size: qr.size },
+    });
+  }
+
   function moveInteraction(event: ReactPointerEvent) {
     if (!interaction) return;
     const dx = (event.clientX - interaction.startClientX) / scale;
     const dy = (event.clientY - interaction.startClientY) / scale;
+
+    if (interaction.target === "field") {
+      if (interaction.kind === "drag") {
+        onFieldChange(interaction.fieldId, {
+          x: Math.max(0, Math.min(originalWidth - interaction.initial.width, interaction.initial.x + dx)),
+          y: Math.max(0, Math.min(originalHeight - interaction.initial.height, interaction.initial.y + dy)),
+        });
+      } else {
+        onFieldChange(interaction.fieldId, {
+          width: Math.max(40, Math.min(originalWidth - interaction.initial.x, interaction.initial.width + dx)),
+          height: Math.max(20, Math.min(originalHeight - interaction.initial.y, interaction.initial.height + dy)),
+        });
+      }
+      return;
+    }
+
     if (interaction.kind === "drag") {
-      onFieldChange(interaction.fieldId, {
-        x: Math.max(0, Math.min(originalWidth - interaction.initial.width, interaction.initial.x + dx)),
-        y: Math.max(0, Math.min(originalHeight - interaction.initial.height, interaction.initial.y + dy)),
+      onQrChange({
+        x: Math.max(0, Math.min(originalWidth - interaction.initial.size, interaction.initial.x + dx)),
+        y: Math.max(0, Math.min(originalHeight - interaction.initial.size, interaction.initial.y + dy)),
       });
     } else {
-      onFieldChange(interaction.fieldId, {
-        width: Math.max(40, Math.min(originalWidth - interaction.initial.x, interaction.initial.width + dx)),
-        height: Math.max(20, Math.min(originalHeight - interaction.initial.y, interaction.initial.height + dy)),
-      });
+      const nextSize = Math.max(
+        40,
+        Math.min(
+          400,
+          originalWidth - interaction.initial.x,
+          originalHeight - interaction.initial.y,
+          interaction.initial.size + Math.max(dx, dy),
+        ),
+      );
+      onQrChange({ size: nextSize });
     }
   }
 
@@ -134,7 +188,7 @@ export function TemplateCanvas({
                 event.stopPropagation();
                 onSelect(field.id);
               }}
-              onPointerDown={(event) => beginInteraction(event, field, "drag")}
+              onPointerDown={(event) => beginFieldInteraction(event, field, "drag")}
               className={`group absolute select-none overflow-hidden border ${
                 selected
                   ? "border-blue-500 bg-blue-500/5 ring-1 ring-blue-500"
@@ -152,7 +206,7 @@ export function TemplateCanvas({
                 letterSpacing: field.letterSpacing * scale,
                 lineHeight: field.lineHeight,
                 textAlign: field.align,
-                cursor: interaction?.fieldId === field.id ? "grabbing" : "grab",
+                cursor: interaction?.target === "field" && interaction.fieldId === field.id ? "grabbing" : "grab",
                 display: "flex",
                 alignItems: "center",
                 justifyContent:
@@ -176,7 +230,7 @@ export function TemplateCanvas({
                   <button
                     type="button"
                     aria-label={`Resize ${field.label}`}
-                    onPointerDown={(event) => beginInteraction(event, field, "resize")}
+                    onPointerDown={(event) => beginFieldInteraction(event, field, "resize")}
                     className="absolute -bottom-1 -right-1 h-3 w-3 cursor-se-resize rounded-sm border border-white bg-blue-600 shadow"
                   />
                 </>
@@ -187,19 +241,41 @@ export function TemplateCanvas({
 
         {qr.enabled && (
           <div
-            className="absolute grid place-items-center border-2 border-dashed border-slate-700 bg-white/90 text-slate-900"
+            role="button"
+            tabIndex={0}
+            aria-label="Move verification QR code"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(QR_SELECTION_ID);
+            }}
+            onPointerDown={(event) => beginQrInteraction(event, "drag")}
+            className={`absolute grid place-items-center border-2 border-dashed bg-white/90 text-slate-900 select-none ${
+              qrSelected
+                ? "border-blue-500 ring-1 ring-blue-500"
+                : "border-slate-700 hover:border-blue-400"
+            }`}
             style={{
               left: qr.x * scale,
               top: qr.y * scale,
               width: qr.size * scale,
               height: qr.size * scale,
+              cursor: interaction?.target === "qr" && interaction.kind === "drag" ? "grabbing" : "grab",
+              zIndex: qrSelected ? 2 : 1,
             }}
-            title="Verification QR position"
+            title="Drag to reposition verification QR"
           >
-            <QrCode style={{ width: "76%", height: "76%" }} strokeWidth={1.5} />
-            <span className="absolute -bottom-5 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[9px] font-medium text-white">
+            <QrCode style={{ width: "76%", height: "76%", pointerEvents: "none" }} strokeWidth={1.5} />
+            <span className="pointer-events-none absolute -bottom-5 whitespace-nowrap rounded bg-slate-900 px-1.5 py-0.5 text-[9px] font-medium text-white">
               QR code
             </span>
+            {qrSelected && (
+              <button
+                type="button"
+                aria-label="Resize QR code"
+                onPointerDown={(event) => beginQrInteraction(event, "resize")}
+                className="absolute -bottom-1 -right-1 h-3 w-3 cursor-se-resize rounded-sm border border-white bg-blue-600 shadow"
+              />
+            )}
           </div>
         )}
       </div>

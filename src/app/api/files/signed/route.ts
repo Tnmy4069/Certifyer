@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await storage.get(key);
-    const ext = key.split(".").pop()?.toLowerCase();
+    const filename = key.split("/").pop() || "file";
+    const ext = filename.split(".").pop()?.toLowerCase();
     const mime =
       ext === "png"
         ? "image/png"
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
     return new Response(new Uint8Array(data), {
       headers: {
         "Content-Type": mime,
+        "Content-Disposition": `inline; filename="${filename}"`,
         "Cache-Control": "private, max-age=60",
       },
     });
