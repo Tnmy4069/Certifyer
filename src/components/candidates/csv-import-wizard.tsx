@@ -221,168 +221,170 @@ export function CsvImportWizard({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>Import candidates</CardTitle>
-              <CardDescription>Upload, map, validate, and import a CSV file.</CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={downloadCsvTemplate}
-              >
-                <Download className="mr-2 h-4 w-4" /> Download Template
-              </Button>
-              <div className="flex gap-2 text-xs">
-                {(["upload", "mapping", "preview"] as Stage[]).map((item, index) => (
-                  <Badge key={item} variant={stage === item ? "default" : "outline"}>
-                    {index + 1}. {item === "upload" ? "Upload" : item === "mapping" ? "Map" : "Review"}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {stage === "upload" && (
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-10 text-center hover:bg-muted/40">
-              <FileSpreadsheet className="h-9 w-9 text-muted-foreground" />
+      {!(candidates.length > 0 && stage === "upload") && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="font-medium">Choose a CSV file</p>
-                <p className="text-sm text-muted-foreground">The first row must contain column headers.</p>
+                <CardTitle>Import candidates</CardTitle>
+                <CardDescription>Upload, map, validate, and import a CSV file.</CardDescription>
               </div>
-              <Input
-                className="hidden"
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(event) => void onFile(event.target.files?.[0])}
-              />
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <span className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">
-                  <Upload className="mr-2 h-4 w-4" /> Select CSV
-                </span>
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  size="default"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    downloadCsvTemplate();
-                  }}
+                  size="sm"
+                  onClick={downloadCsvTemplate}
                 >
-                  <Download className="mr-2 h-4 w-4" /> Download CSV Template
+                  <Download className="mr-2 h-4 w-4" /> Download Template
                 </Button>
-              </div>
-            </label>
-          )}
-
-          {stage === "mapping" && parsed && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm font-medium md:grid-cols-[1fr_1fr_1fr]">
-                <span>CSV column</span>
-                <span>Import as</span>
-                <span className="hidden md:block">Metadata key</span>
-              </div>
-              <div className="space-y-3">
-                {parsed.headers.map((header) => (
-                  <div key={header} className="grid grid-cols-2 items-center gap-3 md:grid-cols-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{parsed.originalHeaders[header]}</p>
-                      <p className="truncate text-xs text-muted-foreground">{parsed.rows[0]?.[header] || "Empty"}</p>
-                    </div>
-                    <select
-                      className="h-10 rounded-lg border bg-card px-3 text-sm"
-                      value={assignments[header] ?? ""}
-                      onChange={(event) => updateAssignment(header, event.target.value as Target)}
-                    >
-                      {targets.map((target) => (
-                        <option key={target.value} value={target.value}>{target.label}</option>
-                      ))}
-                    </select>
-                    {assignments[header] === "metadata" ? (
-                      <Input
-                        aria-label={`Metadata key for ${header}`}
-                        value={metadataKeys[header] ?? header}
-                        onChange={(event) => {
-                          setMetadataKeys((current) => ({ ...current, [header]: event.target.value }));
-                          setValidation(null);
-                        }}
-                      />
-                    ) : <span className="hidden text-xs text-muted-foreground md:block">—</span>}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap justify-between gap-2">
-                <Button variant="outline" onClick={resetImport}>Choose another file</Button>
-                <Button disabled={!canValidate || busy} onClick={() => void validate()}>
-                  {busy && <Loader2 className="h-4 w-4 animate-spin" />} Validate rows
-                </Button>
+                <div className="flex gap-2 text-xs">
+                  {(["upload", "mapping", "preview"] as Stage[]).map((item, index) => (
+                    <Badge key={item} variant={stage === item ? "default" : "outline"}>
+                      {index + 1}. {item === "upload" ? "Upload" : item === "mapping" ? "Map" : "Review"}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             </div>
-          )}
-
-          {stage === "preview" && validation && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <Count label="Total" value={validation.counts.total} />
-                <Count label="Valid" value={validation.counts.valid} tone="text-emerald-700" />
-                <Count label="Duplicates" value={validation.counts.duplicate} tone="text-amber-700" />
-                <Count label="Invalid" value={validation.counts.invalid} tone="text-red-700" />
-              </div>
-
-              {(validation.counts.invalid > 0 || validation.counts.duplicate > 0) && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
-                  <p className="text-sm text-muted-foreground">
-                    Duplicate and invalid rows will not be imported.
-                  </p>
-                  <Button size="sm" variant="outline" onClick={downloadInvalidRows}>
-                    <Download className="h-4 w-4" /> Download skipped rows
+          </CardHeader>
+          <CardContent>
+            {stage === "upload" && (
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-10 text-center hover:bg-muted/40">
+                <FileSpreadsheet className="h-9 w-9 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">Choose a CSV file</p>
+                  <p className="text-sm text-muted-foreground">The first row must contain column headers.</p>
+                </div>
+                <Input
+                  className="hidden"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(event) => void onFile(event.target.files?.[0])}
+                />
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <span className="inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">
+                    <Upload className="mr-2 h-4 w-4" /> Select CSV
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="default"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      downloadCsvTemplate();
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" /> Download CSV Template
                   </Button>
                 </div>
-              )}
+              </label>
+            )}
 
-              <div className="max-h-72 overflow-auto rounded-lg border">
-                <table className="w-full text-left text-sm">
-                  <thead className="sticky top-0 bg-muted">
-                    <tr>
-                      <th className="px-3 py-2">Row</th>
-                      <th className="px-3 py-2">Name</th>
-                      <th className="px-3 py-2">Email</th>
-                      <th className="px-3 py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {validation.rows.slice(0, 100).map((row) => (
-                      <tr key={row.rowNumber} className="border-t">
-                        <td className="px-3 py-2">{row.rowNumber}</td>
-                        <td className="px-3 py-2">{row.candidate?.name || row.source[mapping.name]}</td>
-                        <td className="px-3 py-2">{row.candidate?.email || row.source[mapping.email]}</td>
-                        <td className="px-3 py-2">
-                          <Badge variant={row.status === "valid" ? "success" : row.status === "duplicate" ? "warning" : "destructive"}>
-                            {row.errors[0] ?? "Valid"}
-                          </Badge>
-                        </td>
+            {stage === "mapping" && parsed && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm font-medium md:grid-cols-[1fr_1fr_1fr]">
+                  <span>CSV column</span>
+                  <span>Import as</span>
+                  <span className="hidden md:block">Metadata key</span>
+                </div>
+                <div className="space-y-3">
+                  {parsed.headers.map((header) => (
+                    <div key={header} className="grid grid-cols-2 items-center gap-3 md:grid-cols-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{parsed.originalHeaders[header]}</p>
+                        <p className="truncate text-xs text-muted-foreground">{parsed.rows[0]?.[header] || "Empty"}</p>
+                      </div>
+                      <select
+                        className="h-10 rounded-lg border bg-card px-3 text-sm"
+                        value={assignments[header] ?? ""}
+                        onChange={(event) => updateAssignment(header, event.target.value as Target)}
+                      >
+                        {targets.map((target) => (
+                          <option key={target.value} value={target.value}>{target.label}</option>
+                        ))}
+                      </select>
+                      {assignments[header] === "metadata" ? (
+                        <Input
+                          aria-label={`Metadata key for ${header}`}
+                          value={metadataKeys[header] ?? header}
+                          onChange={(event) => {
+                            setMetadataKeys((current) => ({ ...current, [header]: event.target.value }));
+                            setValidation(null);
+                          }}
+                        />
+                      ) : <span className="hidden text-xs text-muted-foreground md:block">—</span>}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap justify-between gap-2">
+                  <Button variant="outline" onClick={resetImport}>Choose another file</Button>
+                  <Button disabled={!canValidate || busy} onClick={() => void validate()}>
+                    {busy && <Loader2 className="h-4 w-4 animate-spin" />} Validate rows
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {stage === "preview" && validation && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <Count label="Total" value={validation.counts.total} />
+                  <Count label="Valid" value={validation.counts.valid} tone="text-emerald-700" />
+                  <Count label="Duplicates" value={validation.counts.duplicate} tone="text-amber-700" />
+                  <Count label="Invalid" value={validation.counts.invalid} tone="text-red-700" />
+                </div>
+
+                {(validation.counts.invalid > 0 || validation.counts.duplicate > 0) && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-3">
+                    <p className="text-sm text-muted-foreground">
+                      Duplicate and invalid rows will not be imported.
+                    </p>
+                    <Button size="sm" variant="outline" onClick={downloadInvalidRows}>
+                      <Download className="h-4 w-4" /> Download skipped rows
+                    </Button>
+                  </div>
+                )}
+
+                <div className="max-h-72 overflow-auto rounded-lg border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-muted">
+                      <tr>
+                        <th className="px-3 py-2">Row</th>
+                        <th className="px-3 py-2">Name</th>
+                        <th className="px-3 py-2">Email</th>
+                        <th className="px-3 py-2">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {validation.rows.slice(0, 100).map((row) => (
+                        <tr key={row.rowNumber} className="border-t">
+                          <td className="px-3 py-2">{row.rowNumber}</td>
+                          <td className="px-3 py-2">{row.candidate?.name || row.source[mapping.name]}</td>
+                          <td className="px-3 py-2">{row.candidate?.email || row.source[mapping.email]}</td>
+                          <td className="px-3 py-2">
+                            <Badge variant={row.status === "valid" ? "success" : row.status === "duplicate" ? "warning" : "destructive"}>
+                              {row.errors[0] ?? "Valid"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2">
+                  <Button variant="outline" onClick={() => setStage("mapping")}>Back to mapping</Button>
+                  <Button disabled={validation.counts.valid === 0 || busy} onClick={() => void importCandidates()}>
+                    {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Import {validation.counts.valid} valid rows
+                  </Button>
+                </div>
               </div>
-              <div className="flex flex-wrap justify-between gap-2">
-                <Button variant="outline" onClick={() => setStage("mapping")}>Back to mapping</Button>
-                <Button disabled={validation.counts.valid === 0 || busy} onClick={() => void importCandidates()}>
-                  {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Import {validation.counts.valid} valid rows
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -391,22 +393,40 @@ export function CsvImportWizard({
               <CardTitle>Candidates ({candidates.length})</CardTitle>
               <CardDescription>Candidates currently attached to this event.</CardDescription>
             </div>
-            <Button
-              type="button"
-              size="sm"
-              variant={showManualForm ? "outline" : "default"}
-              onClick={() => {
-                setShowManualForm((v) => !v);
-                setManualError(null);
-              }}
-              className="shrink-0"
-            >
-              {showManualForm ? (
-                <><X className="mr-2 h-4 w-4" /> Cancel</>
-              ) : (
-                <><Plus className="mr-2 h-4 w-4" /> Add Candidate Manually</>
+            <div className="flex items-center gap-2">
+              {candidates.length > 0 && stage === "upload" && (
+                <Button asChild size="sm" variant="outline" className="shrink-0">
+                  <label className="cursor-pointer">
+                    <Upload className="mr-2 h-4 w-4" /> Import CSV
+                    <Input
+                      className="hidden"
+                      type="file"
+                      accept=".csv,text/csv"
+                      onChange={(event) => {
+                        void onFile(event.target.files?.[0]);
+                        event.target.value = '';
+                      }}
+                    />
+                  </label>
+                </Button>
               )}
-            </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={showManualForm ? "outline" : "default"}
+                onClick={() => {
+                  setShowManualForm((v) => !v);
+                  setManualError(null);
+                }}
+                className="shrink-0"
+              >
+                {showManualForm ? (
+                  <><X className="mr-2 h-4 w-4" /> Cancel</>
+                ) : (
+                  <><Plus className="mr-2 h-4 w-4" /> Add Candidate Manually</>
+                )}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
