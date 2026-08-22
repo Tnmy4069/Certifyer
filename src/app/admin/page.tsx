@@ -108,29 +108,31 @@ export default async function AdminDashboardPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Events" value={events.length} hint={`${publishedCount} published`} icon={Award} />
-        <StatCard label="Candidates" value={candidateTotal} icon={Users} tone="sky" />
+        <StatCard href="#events" label="Events" value={events.length} hint={`${publishedCount} published`} icon={Award} />
+        <StatCard href="#events" label="Candidates" value={candidateTotal} icon={Users} tone="sky" />
         <StatCard
+          href="#events"
           label="Certificates issued"
           value={issued}
           hint={pending ? `${pending} pending` : undefined}
           icon={Award}
           tone="success"
         />
-        <StatCard label="Downloads" value={downloadTotal} icon={Download} tone="sky" />
-        <StatCard label="Verifications" value={verificationTotal} icon={ShieldCheck} />
+        <StatCard href="/admin/activity" label="Downloads" value={downloadTotal} icon={Download} tone="sky" />
+        <StatCard href="/admin/activity" label="Verifications" value={verificationTotal} icon={ShieldCheck} />
         <StatCard
+          href="/admin/feedback"
           label="Avg rating"
           value={avgRating}
           hint={feedbackCount ? `${feedbackCount} reviews` : "No reviews yet"}
           icon={Star}
           tone="warning"
         />
-        <StatCard label="Generation failures" value={failed} icon={XCircle} tone="danger" />
+        <StatCard href="#events" label="Generation failures" value={failed} icon={XCircle} tone="danger" />
         {isSuperAdmin ? (
-          <StatCard label="Admins" value={adminCount} hint="All platform users" icon={Users} />
+          <StatCard href="/admin/users" label="Admins" value={adminCount} hint="All platform users" icon={Users} />
         ) : (
-          <StatCard label="Published events" value={publishedCount} icon={Award} tone="success" />
+          <StatCard href="#events" label="Published events" value={publishedCount} icon={Award} tone="success" />
         )}
       </div>
 
@@ -146,11 +148,11 @@ export default async function AdminDashboardPage() {
             ) : (
               <FunnelRows
                 rows={[
-                  { label: "Candidates", value: candidateTotal },
-                  { label: "Certificates issued", value: issued },
-                  { label: "Downloaded", value: downloaded },
-                  { label: "Verified", value: verified },
-                  { label: "Feedback received", value: feedbackCount },
+                  { label: "Candidates", value: candidateTotal, href: "#events" },
+                  { label: "Certificates issued", value: issued, href: "#events" },
+                  { label: "Downloaded", value: downloaded, href: "/admin/activity" },
+                  { label: "Verified", value: verified, href: "/admin/activity" },
+                  { label: "Feedback received", value: feedbackCount, href: "/admin/feedback" },
                 ]}
               />
             )}
@@ -283,7 +285,7 @@ export default async function AdminDashboardPage() {
         </Card>
       ) : null}
 
-      <Card>
+      <Card id="events">
         <CardHeader>
           <CardTitle>Events</CardTitle>
           <CardDescription>

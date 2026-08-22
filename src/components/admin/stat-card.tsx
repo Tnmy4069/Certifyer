@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 const tones = {
   default: "bg-indigo-50 text-indigo-600",
@@ -15,15 +16,17 @@ export function StatCard({
   hint,
   icon: Icon,
   tone = "default",
+  href,
 }: {
   label: string;
   value: number | string;
   hint?: string;
   icon?: LucideIcon;
   tone?: keyof typeof tones;
+  href?: string;
 }) {
-  return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-slate-500">{label}</p>
@@ -36,6 +39,20 @@ export function StatCard({
         ) : null}
       </div>
       {hint ? <p className="mt-3 text-xs text-slate-500">{hint}</p> : null}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className="block rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md cursor-pointer">
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      {content}
     </div>
   );
 }
