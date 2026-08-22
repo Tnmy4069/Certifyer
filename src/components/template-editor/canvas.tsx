@@ -160,7 +160,7 @@ export function TemplateCanvas({
   return (
     <div
       ref={viewportRef}
-      className="relative flex min-h-[620px] items-start justify-center overflow-auto rounded-xl border bg-slate-100/80 p-8 shadow-inner dark:bg-slate-950/50"
+      className="relative flex min-h-[360px] sm:min-h-[620px] items-start justify-center overflow-auto no-scrollbar rounded-xl border bg-slate-100/80 p-3 sm:p-8 shadow-inner dark:bg-slate-950/50"
       onPointerMove={moveInteraction}
       onPointerUp={() => setInteraction(null)}
       onPointerCancel={() => setInteraction(null)}

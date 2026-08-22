@@ -327,44 +327,50 @@ export function TemplateEditor({
 
       {template ? (
         <div className="grid items-start gap-4 xl:grid-cols-[230px_minmax(0,1fr)_280px]">
-          <FieldPanel
-            qr={configuration.qr}
-            onAddField={addField}
-            onQrChange={(qr) => {
-              setConfiguration((current) => ({ ...current, qr }));
-              setDirty(true);
-            }}
-          />
-          <TemplateCanvas
-            backgroundUrl={template.backgroundUrl}
-            originalWidth={template.width}
-            originalHeight={template.height}
-            fields={configuration.fields}
-            qr={configuration.qr}
-            zoom={zoom}
-            selectedId={selectedId}
-            liveValues={liveValues}
-            onSelect={setSelectedId}
-            onFieldChange={updateField}
-            onQrChange={(patch) => {
-              setConfiguration((current) => ({
-                ...current,
-                qr: { ...current.qr, ...patch },
-              }));
-              setDirty(true);
-            }}
-          />
-          <PropertiesPanel
-            field={selectedField}
-            qr={configuration.qr}
-            onFieldChange={(patch) => selectedId && updateField(selectedId, patch)}
-            onQrChange={(qr) => {
-              setConfiguration((current) => ({ ...current, qr }));
-              setDirty(true);
-            }}
-            onDuplicate={duplicateSelected}
-            onDelete={deleteSelected}
-          />
+          <div className="order-2 xl:order-1">
+            <FieldPanel
+              qr={configuration.qr}
+              onAddField={addField}
+              onQrChange={(qr) => {
+                setConfiguration((current) => ({ ...current, qr }));
+                setDirty(true);
+              }}
+            />
+          </div>
+          <div className="order-1 xl:order-2 overflow-hidden">
+            <TemplateCanvas
+              backgroundUrl={template.backgroundUrl}
+              originalWidth={template.width}
+              originalHeight={template.height}
+              fields={configuration.fields}
+              qr={configuration.qr}
+              zoom={zoom}
+              selectedId={selectedId}
+              liveValues={liveValues}
+              onSelect={setSelectedId}
+              onFieldChange={updateField}
+              onQrChange={(patch) => {
+                setConfiguration((current) => ({
+                  ...current,
+                  qr: { ...current.qr, ...patch },
+                }));
+                setDirty(true);
+              }}
+            />
+          </div>
+          <div className="order-3">
+            <PropertiesPanel
+              field={selectedField}
+              qr={configuration.qr}
+              onFieldChange={(patch) => selectedId && updateField(selectedId, patch)}
+              onQrChange={(qr) => {
+                setConfiguration((current) => ({ ...current, qr }));
+                setDirty(true);
+              }}
+              onDuplicate={duplicateSelected}
+              onDelete={deleteSelected}
+            />
+          </div>
         </div>
       ) : (
         <button

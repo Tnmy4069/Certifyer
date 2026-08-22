@@ -229,46 +229,74 @@ export function UserManager() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading users...</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="pb-3 font-medium">Name</th>
-                    <th className="pb-3 font-medium">Email</th>
-                    <th className="pb-3 font-medium">Role</th>
-                    <th className="pb-3 font-medium">Created</th>
-                    <th className="pb-3 text-right font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b last:border-0">
-                      <td className="py-3 font-medium">{user.name}</td>
-                      <td className="py-3 text-muted-foreground">{user.email}</td>
-                      <td className="py-3">
-                        <Badge
-                          variant={
-                            user.role === "SUPER_ADMIN" ? "default" : "outline"
-                          }
-                        >
-                          {user.role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        {formatShortDate(user.createdAt)}
-                      </td>
-                      <td className="py-3 text-right">
-                        {user.role === "ADMIN" ? (
-                          <ResetPasswordDialog user={user} />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
+            <>
+              {/* Mobile User Cards (< md) */}
+              <div className="space-y-3 md:hidden">
+                {users.map((user) => (
+                  <div key={user.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{user.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                      <Badge variant={user.role === "SUPER_ADMIN" ? "default" : "outline"} className="text-xs shrink-0">
+                        {user.role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between border-t pt-2.5 text-xs text-slate-500">
+                      <span>Joined {formatShortDate(user.createdAt)}</span>
+                      {user.role === "ADMIN" ? (
+                        <ResetPasswordDialog user={user} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">System managed</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[560px] text-left text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="pb-3 font-medium">Name</th>
+                      <th className="pb-3 font-medium">Email</th>
+                      <th className="pb-3 font-medium">Role</th>
+                      <th className="pb-3 font-medium">Created</th>
+                      <th className="pb-3 text-right font-medium">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {users.map((user) => (
+                      <tr key={user.id} className="border-b last:border-0">
+                        <td className="py-3 font-medium">{user.name}</td>
+                        <td className="py-3 text-muted-foreground">{user.email}</td>
+                        <td className="py-3">
+                          <Badge
+                            variant={
+                              user.role === "SUPER_ADMIN" ? "default" : "outline"
+                            }
+                          >
+                            {user.role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 text-muted-foreground">
+                          {formatShortDate(user.createdAt)}
+                        </td>
+                        <td className="py-3 text-right">
+                          {user.role === "ADMIN" ? (
+                            <ResetPasswordDialog user={user} />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

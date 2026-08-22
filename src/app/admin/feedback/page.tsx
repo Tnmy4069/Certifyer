@@ -68,8 +68,8 @@ export default async function FeedbackPage({ searchParams }: SearchParams) {
         }
       />
 
-      <div className="flex flex-wrap gap-2">
-        <Link href="/admin/feedback" className={!selectedEventId ? "admin-chip admin-chip-active" : "admin-chip"}>
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+        <Link href="/admin/feedback" className={!selectedEventId ? "admin-chip admin-chip-active shrink-0" : "admin-chip shrink-0"}>
           All events
         </Link>
         {events.map((event) => {
@@ -79,7 +79,7 @@ export default async function FeedbackPage({ searchParams }: SearchParams) {
             <Link
               key={id}
               href={`/admin/feedback?event=${id}`}
-              className={active ? "admin-chip admin-chip-active" : "admin-chip"}
+              className={active ? "admin-chip admin-chip-active shrink-0" : "admin-chip shrink-0"}
             >
               {event.name}
             </Link>

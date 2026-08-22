@@ -28,8 +28,8 @@ export function EventNav({ eventId }: { eventId: string }) {
   const base = `/admin/events/${eventId}`;
 
   return (
-    <div className="overflow-x-auto">
-      <div className="inline-flex min-w-full gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
+    <div className="-mx-1 sm:mx-0 overflow-x-auto no-scrollbar py-1">
+      <div className="inline-flex min-w-full sm:min-w-0 gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
         {tabs.map((tab) => {
           const href = `${base}${tab.suffix}`;
           const active = tab.suffix === "" ? pathname === base : pathname.startsWith(href);
@@ -39,7 +39,7 @@ export function EventNav({ eventId }: { eventId: string }) {
               key={tab.key}
               href={href}
               className={cn(
-                "inline-flex min-w-max items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition",
+                "inline-flex min-w-max items-center gap-1.5 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium transition active:scale-95",
                 active
                   ? "bg-slate-900 text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"

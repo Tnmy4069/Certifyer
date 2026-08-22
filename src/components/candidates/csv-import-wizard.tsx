@@ -528,30 +528,74 @@ export function CsvImportWizard({
               No candidates imported yet.
             </p>
           ) : candidates.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Organization</th>
-                    <th className="px-4 py-3">Role</th>
-                    <th className="px-4 py-3">Department</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidates.map((candidate) => (
-                    <tr key={candidate.id} className="border-t">
-                      <td className="px-4 py-3 font-medium">{candidate.name}</td>
-                      <td className="px-4 py-3">{candidate.email}</td>
-                      <td className="px-4 py-3">{candidate.organization || "—"}</td>
-                      <td className="px-4 py-3">{candidate.role || "—"}</td>
-                      <td className="px-4 py-3">{candidate.department || "—"}</td>
+            <>
+              {/* Mobile Candidate Cards (< md) */}
+              <div className="space-y-3 md:hidden">
+                {candidates.map((candidate) => (
+                  <div key={candidate.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{candidate.name}</p>
+                        <p className="text-xs text-slate-500 truncate">{candidate.email}</p>
+                      </div>
+                      {candidate.role ? (
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {candidate.role}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {(candidate.organization || candidate.department || candidate.phone) ? (
+                      <div className="grid grid-cols-2 gap-2 border-t pt-2 text-xs text-slate-600">
+                        {candidate.organization ? (
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">ORGANIZATION</span>
+                            <span className="truncate block">{candidate.organization}</span>
+                          </div>
+                        ) : null}
+                        {candidate.department ? (
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">DEPARTMENT</span>
+                            <span className="truncate block">{candidate.department}</span>
+                          </div>
+                        ) : null}
+                        {candidate.phone ? (
+                          <div>
+                            <span className="text-slate-400 block text-[10px]">PHONE</span>
+                            <span className="truncate block">{candidate.phone}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Candidate Table (>= md) */}
+              <div className="hidden md:block overflow-x-auto rounded-lg border">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Organization</th>
+                      <th className="px-4 py-3">Role</th>
+                      <th className="px-4 py-3">Department</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {candidates.map((candidate) => (
+                      <tr key={candidate.id} className="border-t">
+                        <td className="px-4 py-3 font-medium">{candidate.name}</td>
+                        <td className="px-4 py-3">{candidate.email}</td>
+                        <td className="px-4 py-3">{candidate.organization || "—"}</td>
+                        <td className="px-4 py-3">{candidate.role || "—"}</td>
+                        <td className="px-4 py-3">{candidate.department || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : null}
         </CardContent>
       </Card>

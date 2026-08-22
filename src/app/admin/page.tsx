@@ -127,7 +127,7 @@ export default async function AdminDashboardPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard href="#events" label="Events" value={events.length} hint={`${publishedCount} published`} icon={Award} />
         <StatCard href="#events" label="Candidates" value={candidateTotal} icon={Users} tone="sky" />
         <StatCard
@@ -202,7 +202,7 @@ export default async function AdminDashboardPage() {
                       <Link
                         key={String(cert._id)}
                         href={`/admin/events/${cert.eventId}/certificates`}
-                        className="block rounded-lg border px-3 py-2 text-sm hover:bg-muted/50"
+                        className="block rounded-lg border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
                       >
                         <p className="font-medium">{cert.certificateNumber}</p>
                         <p className="text-xs text-muted-foreground">
@@ -255,13 +255,8 @@ export default async function AdminDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
-                Candidate ratings
-              </CardTitle>
-              <CardDescription>
-                {feedbackCount ? `${avgRating} average from ${feedbackCount} reviews.` : "Ratings appear after candidates submit feedback."}
-              </CardDescription>
+              <CardTitle>Recent feedback</CardTitle>
+              <CardDescription>Latest candidate ratings and remarks.</CardDescription>
             </div>
             <Button asChild variant="outline" size="sm">
               <Link href="/admin/feedback">
@@ -271,7 +266,7 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             {feedbackCount === 0 ? (
-              <p className="text-sm text-muted-foreground">No ratings yet.</p>
+              <p className="text-sm text-muted-foreground">No feedback ratings yet.</p>
             ) : (
               <RatingBars counts={ratingCounts} total={feedbackCount} />
             )}
@@ -321,55 +316,92 @@ export default async function AdminDashboardPage() {
               actionHref="/admin/events/new"
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Event</th>
-                    {isSuperAdmin ? <th>Owner</th> : null}
-                    <th>Candidates</th>
-                    <th>Generated</th>
-                    <th>Downloads</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event) => (
-                    <tr key={String(event._id)}>
-                      <td className="py-3">
-                        <Link href={`/admin/events/${event._id}`} className="font-medium hover:underline">
-                          {event.name}
-                        </Link>
+            <>
+              {/* Mobile Event Cards (< md) */}
+              <div className="space-y-3 md:hidden">
+                {events.map((event) => (
+                  <Link
+                    key={String(event._id)}
+                    href={`/admin/events/${event._id}`}
+                    className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition active:scale-[0.99]"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{event.name}</p>
                         <p className="text-xs text-muted-foreground">/{event.slug}</p>
-                      </td>
-                      {isSuperAdmin ? (
-                        <td className="py-3 text-muted-foreground">
-                          {eventOwnerLabel(event.createdBy) ?? "Unknown owner"}
-                        </td>
-                      ) : null}
-                      <td className="py-3">{event.candidateCount}</td>
-                      <td className="py-3">{event.generatedCount}</td>
-                      <td className="py-3">{event.downloadCount}</td>
-                      <td className="py-3">
-                        <Badge
-                          variant={
-                            event.status === "PUBLISHED"
-                              ? "success"
-                              : event.status === "ARCHIVED"
-                                ? "muted"
-                                : "outline"
-                          }
-                        >
-                          {event.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 text-muted-foreground">{formatShortDate(event.createdAt)}</td>
+                      </div>
+                      <Badge
+                        variant={
+                          event.status === "PUBLISHED"
+                            ? "success"
+                            : event.status === "ARCHIVED"
+                              ? "muted"
+                              : "outline"
+                        }
+                      >
+                        {event.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-xs text-slate-500">
+                      <span>{event.candidateCount} candidates</span>
+                      <span>{event.generatedCount} issued</span>
+                      <span>{event.downloadCount} dl</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      {isSuperAdmin ? <th>Owner</th> : null}
+                      <th>Candidates</th>
+                      <th>Generated</th>
+                      <th>Downloads</th>
+                      <th>Status</th>
+                      <th>Created</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {events.map((event) => (
+                      <tr key={String(event._id)}>
+                        <td className="py-3">
+                          <Link href={`/admin/events/${event._id}`} className="font-medium hover:underline">
+                            {event.name}
+                          </Link>
+                          <p className="text-xs text-muted-foreground">/{event.slug}</p>
+                        </td>
+                        {isSuperAdmin ? (
+                          <td className="py-3 text-muted-foreground">
+                            {eventOwnerLabel(event.createdBy) ?? "Unknown owner"}
+                          </td>
+                        ) : null}
+                        <td className="py-3">{event.candidateCount}</td>
+                        <td className="py-3">{event.generatedCount}</td>
+                        <td className="py-3">{event.downloadCount}</td>
+                        <td className="py-3">
+                          <Badge
+                            variant={
+                              event.status === "PUBLISHED"
+                                ? "success"
+                                : event.status === "ARCHIVED"
+                                  ? "muted"
+                                  : "outline"
+                            }
+                          >
+                            {event.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 text-muted-foreground">{formatShortDate(event.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

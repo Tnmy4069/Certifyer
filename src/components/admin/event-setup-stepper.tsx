@@ -36,7 +36,7 @@ export function EventSetupStepper({
           Exit setup
         </Link>
       </div>
-      <ol className="grid gap-3 sm:grid-cols-4">
+      <ol className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
         {EVENT_SETUP_STEPS.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
@@ -45,7 +45,7 @@ export function EventSetupStepper({
               <Link
                 href={index === 0 ? `/admin/events/${eventId}` : setupHref(eventId, step.key)}
                 className={cn(
-                  "flex h-full items-start gap-3 rounded-xl border px-3 py-3 transition",
+                  "flex h-full items-start gap-2 sm:gap-3 rounded-xl border p-2.5 sm:p-3 transition",
                   active
                     ? "border-slate-900 bg-slate-900 text-white"
                     : done
@@ -55,7 +55,7 @@ export function EventSetupStepper({
               >
                 <span
                   className={cn(
-                    "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                    "mt-0.5 flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full text-[11px] sm:text-xs font-semibold",
                     active
                       ? "bg-white text-slate-900"
                       : done
@@ -63,11 +63,11 @@ export function EventSetupStepper({
                         : "bg-white text-slate-500"
                   )}
                 >
-                  {done ? <Check className="h-3.5 w-3.5" /> : index + 1}
+                  {done ? <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : index + 1}
                 </span>
-                <span>
-                  <span className="block text-sm font-medium">{step.label}</span>
-                  <span className={cn("mt-0.5 block text-xs", active ? "text-slate-300" : "opacity-80")}>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs sm:text-sm font-medium">{step.label}</span>
+                  <span className={cn("mt-0.5 hidden xs:block sm:block text-[11px] sm:text-xs truncate", active ? "text-slate-300" : "opacity-80")}>
                     {step.hint}
                   </span>
                 </span>

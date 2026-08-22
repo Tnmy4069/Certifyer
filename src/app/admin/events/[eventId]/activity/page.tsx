@@ -40,7 +40,7 @@ export default async function EventActivityPage({ params, searchParams }: Params
       </div>
       <EventNav eventId={eventId} />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
         {AUDIT_ACTION_FILTERS.map((item) => {
           const href = item.value
             ? `/admin/events/${eventId}/activity?action=${encodeURIComponent(item.value)}`
@@ -50,7 +50,7 @@ export default async function EventActivityPage({ params, searchParams }: Params
             <Link
               key={item.label}
               href={href}
-              className={active ? "admin-chip admin-chip-active" : "admin-chip"}
+              className={active ? "admin-chip admin-chip-active shrink-0" : "admin-chip shrink-0"}
             >
               {item.label}
             </Link>
@@ -70,28 +70,49 @@ export default async function EventActivityPage({ params, searchParams }: Params
               description="Activity appears when candidates search, download, verify, or leave feedback."
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="pb-3 font-medium">When</th>
-                    <th className="pb-3 font-medium">Action</th>
-                    <th className="pb-3 font-medium">Actor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activity.map((item) => (
-                    <tr key={String(item._id)} className="border-b last:border-0">
-                      <td className="py-3 text-muted-foreground">{formatDateTime(item.createdAt)}</td>
-                      <td className="py-3 font-medium">{auditActionLabel(item.action)}</td>
-                      <td className="py-3">
-                        <Badge variant="outline">{item.actorType}</Badge>
-                      </td>
+            <>
+              {/* Mobile Card List (< md) */}
+              <div className="space-y-3 md:hidden">
+                {activity.map((item) => (
+                  <div key={String(item._id)} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-sm text-slate-900">{auditActionLabel(item.action)}</p>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {item.actorType}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-slate-400 border-t pt-2">
+                      <span className="font-mono text-[11px]">{item.action}</span>
+                      <span>{formatDateTime(item.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="pb-3 font-medium">When</th>
+                      <th className="pb-3 font-medium">Action</th>
+                      <th className="pb-3 font-medium">Actor</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {activity.map((item) => (
+                      <tr key={String(item._id)} className="border-b last:border-0">
+                        <td className="py-3 text-muted-foreground">{formatDateTime(item.createdAt)}</td>
+                        <td className="py-3 font-medium">{auditActionLabel(item.action)}</td>
+                        <td className="py-3">
+                          <Badge variant="outline">{item.actorType}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

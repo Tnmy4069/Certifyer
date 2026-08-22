@@ -49,14 +49,14 @@ export default async function EventDetailPage({ params }: Params) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{event.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">{event.name}</h1>
               <Badge variant={event.status === "PUBLISHED" ? "success" : "outline"}>{event.status}</Badge>
             </div>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">
               {event.organizerName} · {formatDate(event.eventDate)}
               {event.location ? ` · ${event.location}` : ""}
             </p>
@@ -72,36 +72,36 @@ export default async function EventDetailPage({ params }: Params) {
 
       <EventNav eventId={eventId} />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Card>
-          <CardHeader>
-            <CardDescription>Candidates</CardDescription>
-            <CardTitle>{candidateCount}</CardTitle>
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
+        <Card className="p-3 sm:p-6">
+          <CardHeader className="p-0 sm:p-6 sm:pb-2">
+            <CardDescription className="text-xs sm:text-sm">Candidates</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">{candidateCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Generated</CardDescription>
-            <CardTitle>{serialized.generatedCount}</CardTitle>
+        <Card className="p-3 sm:p-6">
+          <CardHeader className="p-0 sm:p-6 sm:pb-2">
+            <CardDescription className="text-xs sm:text-sm">Generated</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">{serialized.generatedCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Downloads</CardDescription>
-            <CardTitle>{serialized.downloadCount}</CardTitle>
+        <Card className="p-3 sm:p-6">
+          <CardHeader className="p-0 sm:p-6 sm:pb-2">
+            <CardDescription className="text-xs sm:text-sm">Downloads</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">{serialized.downloadCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Verifications</CardDescription>
-            <CardTitle>{serialized.verificationCount}</CardTitle>
+        <Card className="p-3 sm:p-6">
+          <CardHeader className="p-0 sm:p-6 sm:pb-2">
+            <CardDescription className="text-xs sm:text-sm">Verifications</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">{serialized.verificationCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardDescription>Avg Rating ({feedbacks.length})</CardDescription>
-            <CardTitle className="flex items-center gap-1.5 text-amber-500">
-              <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+        <Card className="p-3 sm:p-6 col-span-2 sm:col-span-1">
+          <CardHeader className="p-0 sm:p-6 sm:pb-2">
+            <CardDescription className="text-xs sm:text-sm">Avg Rating ({feedbacks.length})</CardDescription>
+            <CardTitle className="flex items-center gap-1.5 text-lg sm:text-2xl text-amber-500">
+              <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-amber-400 text-amber-400" />
               {avgRating} <span className="text-xs font-normal text-muted-foreground">/ 5.0</span>
             </CardTitle>
           </CardHeader>
