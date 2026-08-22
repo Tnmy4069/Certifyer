@@ -10,6 +10,12 @@ const envSchema = z.object({
   SUPER_ADMIN_EMAIL: z.string().email().default("admin@certify.local"),
   SUPER_ADMIN_PASSWORD: z.string().min(8).default("Admin123!"),
   SUPER_ADMIN_NAME: z.string().default("Certify Super Admin"),
+  // Email / SMTP (optional — feature is disabled when not set)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -28,6 +34,11 @@ export function getEnv(): AppEnv {
     SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL,
     SUPER_ADMIN_PASSWORD: process.env.SUPER_ADMIN_PASSWORD,
     SUPER_ADMIN_NAME: process.env.SUPER_ADMIN_NAME,
+    SMTP_HOST: process.env.SMTP_HOST,
+    SMTP_PORT: process.env.SMTP_PORT,
+    SMTP_USER: process.env.SMTP_USER,
+    SMTP_PASS: process.env.SMTP_PASS,
+    SMTP_FROM: process.env.SMTP_FROM,
   });
 
   if (!parsed.success) {

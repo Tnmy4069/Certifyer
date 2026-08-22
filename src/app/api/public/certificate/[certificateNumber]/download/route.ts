@@ -14,9 +14,9 @@ type Params = { params: Promise<{ certificateNumber: string }> };
 
 const querySchema = z.object({
   eventSlug: z.string().min(1).optional(),
-  email: z.string().email(),
-  token: z.string().min(10),
-  format: z.enum(["png", "pdf"]),
+  email: z.string().email().optional(),
+  token: z.string().min(10).optional(),
+  format: z.enum(["png", "pdf"]).default("pdf"),
 });
 
 export async function GET(request: NextRequest, { params }: Params) {
@@ -29,9 +29,9 @@ export async function GET(request: NextRequest, { params }: Params) {
     const { searchParams } = new URL(request.url);
     const query = querySchema.parse({
       eventSlug: searchParams.get("eventSlug") || undefined,
-      email: searchParams.get("email"),
-      token: searchParams.get("token"),
-      format: searchParams.get("format"),
+      email: searchParams.get("email") || undefined,
+      token: searchParams.get("token") || undefined,
+      format: (searchParams.get("format") as "png" | "pdf") || "pdf",
     });
 
     await connectDb();
@@ -46,19 +46,23 @@ export async function GET(request: NextRequest, { params }: Params) {
     const event = await Event.findOne({
       _id: certificate.eventId,
       ...(query.eventSlug ? { slug: query.eventSlug } : {}),
-      status: "PUBLISHED",
     });
     if (!event) throw new AppError("Not found", 404);
 
-    const access = await getCandidateAccessProvider().verifyAccess({
-      eventId: String(event._id),
-      email: query.email,
-      token: query.token,
-    });
-    if (!access.granted) throw new AppError("Access denied", 403);
+    if (query.email && query.token) {
+      const access = await getCandidateAccessProvider().verifyAccess({
+        eventId: String(event._id),
+        email: query.email,
+        token: query.token,
+      });
+      if (!access.granted) throw new AppError("Access denied", 403);
+    }
 
     const candidate = await Candidate.findOne({ _id: certificate.candidateId });
-    if (!candidate || candidate.email !== query.email.toLowerCase()) throw new AppError("Not found", 404);
+    if (!candidate) throw new AppError("Not found", 404);
+    if (query.email && candidate.email !== query.email.toLowerCase()) {
+      throw new AppError("Not found", 404);
+    }
 
     const template = await CertificateTemplate.findOne({ eventId: event._id });
     if (!template) throw new AppError("Template not found", 404);
@@ -106,8 +110,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     await AuditEvent.create({
       eventId: event._id,
       certificateId: certificate._id,
-      actorType: "CANDIDATE",
-      actorId: query.email,
+      actorType: query.email ? "CANDIDATE" : "PUBLIC",
+      actorId: query.email || "public",
       action: `certificate.download.${query.format}`,
     });
 

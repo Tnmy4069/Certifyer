@@ -6,6 +6,7 @@ import { AuditEvent, Candidate, Certificate, Event } from "@/models";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
 type Params = { params: Promise<{ certificateId: string }> };
 
@@ -207,16 +208,33 @@ export default async function VerifyPage({ params }: Params) {
             {revoked ? <Row label="Revoked Date" value={formatDate(certificate.revokedAt)} /> : null}
           </div>
 
-          {linkedinAddUrl && (
-            <div className="border-t pt-4">
-              <Button asChild className="w-full bg-[#0A66C2] text-white hover:bg-[#004182]">
-                <a href={linkedinAddUrl} target="_blank" rel="noreferrer">
-                  <svg className="mr-2 h-4 w-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                  </svg>
-                  Add to LinkedIn Profile
-                </a>
-              </Button>
+          {!revoked && (
+            <div className="border-t pt-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Button asChild variant="outline" className="w-full h-11 rounded-xl font-medium gap-2 border-slate-300 hover:bg-slate-100 transition-all shadow-sm">
+                  <a href={`/api/public/certificate/${certificate.certificateNumber}/download?format=png`} download>
+                    <Download className="h-4 w-4 text-indigo-600" />
+                    Download PNG
+                  </a>
+                </Button>
+                <Button asChild className="w-full h-11 rounded-xl font-medium gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all">
+                  <a href={`/api/public/certificate/${certificate.certificateNumber}/download?format=pdf`} download>
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </a>
+                </Button>
+              </div>
+
+              {linkedinAddUrl && (
+                <Button asChild className="w-full h-11 rounded-xl bg-[#0A66C2] text-white hover:bg-[#004182] font-medium shadow-sm transition-all">
+                  <a href={linkedinAddUrl} target="_blank" rel="noreferrer">
+                    <svg className="mr-2 h-4 w-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                    </svg>
+                    Add to LinkedIn Profile
+                  </a>
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Mail, Send, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,10 @@ export function CertificatesManager({ eventId, setup = false }: { eventId: strin
   const [actioning, setActioning] = useState<Set<string>>(new Set());
   const [batch, setBatch] = useState<BatchProgress | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [notifyBusy, setNotifyBusy] = useState(false);
+  const [notifyingIds, setNotifyingIds] = useState<Set<string>>(new Set());
+  const [notifyResult, setNotifyResult] = useState<{ sent: number; failed: number; skipped: number } | null>(null);
+  const [smtpReady, setSmtpReady] = useState<boolean | null>(null); // null = loading
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -76,6 +80,19 @@ export function CertificatesManager({ eventId, setup = false }: { eventId: strin
       cancelled = true;
     };
   }, [load]);
+
+  // Fetch SMTP/notify status on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch(`/api/events/${eventId}/notify`);
+        const data = await res.json();
+        if (res.ok) setSmtpReady(data.smtpConfigured ?? false);
+      } catch {
+        setSmtpReady(false);
+      }
+    })();
+  }, [eventId]);
 
   const notGeneratedCount = useMemo(
     () => certificates.filter((c) => c.status === "NOT_GENERATED" || c.status === "PENDING").length,
@@ -125,6 +142,48 @@ export function CertificatesManager({ eventId, setup = false }: { eventId: strin
       toast.error(error instanceof Error ? error.message : "Could not start generation");
     } finally {
       setBulkBusy(false);
+    }
+  }
+
+  async function sendNotify(onlyNew: boolean) {
+    setNotifyBusy(true);
+    setNotifyResult(null);
+    try {
+      const response = await fetch(`/api/events/${eventId}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onlyNew }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to send emails");
+      setNotifyResult({ sent: data.sent, failed: data.failed, skipped: data.skipped });
+      if (data.sent > 0) toast.success(`${data.sent} email${data.sent === 1 ? "" : "s"} sent successfully`);
+      if (data.failed > 0) toast.error(`${data.failed} email${data.failed === 1 ? "" : "s"} failed to send`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send emails");
+    } finally {
+      setNotifyBusy(false);
+    }
+  }
+
+  async function sendNotifyOne(cert: CertificateRow) {
+    if (!cert.candidate) return;
+    setNotifyingIds((prev) => new Set(prev).add(cert.id));
+    try {
+      const response = await fetch(`/api/events/${eventId}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId: cert.candidate.id, onlyNew: false }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to send email");
+      if (data.sent > 0) toast.success(`Email sent to ${cert.candidate.email}`);
+      else if (data.failed > 0) toast.error(`Failed to send email to ${cert.candidate.email}`);
+      else toast.info(`No email sent — certificate may not be generated yet`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send email");
+    } finally {
+      setNotifyingIds((prev) => { const next = new Set(prev); next.delete(cert.id); return next; });
     }
   }
 
@@ -200,6 +259,43 @@ export function CertificatesManager({ eventId, setup = false }: { eventId: strin
           >
             {bulkBusy ? "Generating…" : "Generate all"}
           </Button>
+          {/* Notify Candidates button */}
+          {smtpReady === false ? (
+            <Button
+              variant="outline"
+              className="rounded-xl gap-2 opacity-50 cursor-not-allowed"
+              disabled
+              title="Configure SMTP in .env to enable email notifications"
+            >
+              <Mail className="h-4 w-4" />
+              Notify Candidates
+            </Button>
+          ) : (
+            <div className="relative inline-flex">
+              <Button
+                variant="outline"
+                className="rounded-xl gap-2"
+                disabled={notifyBusy || loading}
+                onClick={() => void sendNotify(true)}
+              >
+                {notifyBusy ? (
+                  <><RefreshCw className="h-4 w-4 animate-spin" /> Sending…</>
+                ) : (
+                  <><Send className="h-4 w-4" /> Notify Unsent</>  
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-xl ml-1 text-xs text-muted-foreground"
+                disabled={notifyBusy || loading}
+                onClick={() => void sendNotify(false)}
+                title="Re-send to ALL candidates (including previously notified)"
+              >
+                Re-send all
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -231,6 +327,34 @@ export function CertificatesManager({ eventId, setup = false }: { eventId: strin
           <CardContent>
             <Progress value={batch.percent} />
             <p className="mt-2 text-xs text-muted-foreground">{batch.percent}% · {batch.status}</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Email notify result card */}
+      {notifyResult ? (
+        <Card className="border-indigo-200 bg-indigo-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="h-4 w-4 text-indigo-600" />
+              Email notification sent
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                <strong>{notifyResult.sent}</strong> sent
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                <strong>{notifyResult.failed}</strong> failed
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-slate-400" />
+                <strong>{notifyResult.skipped}</strong> skipped (already notified)
+              </span>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -369,6 +493,27 @@ export function CertificatesManager({ eventId, setup = false }: { eventId: strin
                                 </Button>
                               )
                             )}
+                             {/* Notify individual candidate */}
+                             {cert.status === "GENERATED" ? (
+                               <Button
+                                 size="sm"
+                                 variant="outline"
+                                 className="gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+                                 disabled={!smtpReady || notifyingIds.has(cert.id)}
+                                 onClick={() => void sendNotifyOne(cert)}
+                                 title={
+                                   !smtpReady
+                                     ? "Configure SMTP in .env.local to enable email notifications"
+                                     : `Send certificate email to ${cert.candidate?.email}`
+                                 }
+                               >
+                                 {notifyingIds.has(cert.id) ? (
+                                   <><RefreshCw className="h-3 w-3 animate-spin" /> Sending…</>
+                                 ) : (
+                                   <><Send className="h-3 w-3" /> Notify</>
+                                 )}
+                               </Button>
+                             ) : null}
                           </div>
                         </td>
                       </tr>
