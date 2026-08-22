@@ -31,25 +31,30 @@ export default async function AdminDashboardPage() {
   const scoped = { eventId: { $in: eventIds } };
 
   const [
-    issued,
-    failed,
-    pending,
+    certFacet,
     downloaded,
     verified,
     candidateTotal,
     downloadAgg,
     verificationAgg,
-    ratingAgg,
-    ratingBuckets,
+    feedbackFacet,
     recentActivity,
     failedCertificates,
     adminCount,
   ] = await Promise.all([
-    eventIds.length ? Certificate.countDocuments({ ...scoped, status: "GENERATED" }) : 0,
-    eventIds.length ? Certificate.countDocuments({ ...scoped, status: "FAILED" }) : 0,
+    // Single $facet replaces 5 separate Certificate.countDocuments calls
     eventIds.length
-      ? Certificate.countDocuments({ ...scoped, status: { $in: ["NOT_GENERATED", "PENDING"] } })
-      : 0,
+      ? Certificate.aggregate([
+          { $match: { eventId: { $in: eventIds } } },
+          {
+            $facet: {
+              issued: [{ $match: { status: "GENERATED" } }, { $count: "n" }],
+              failed: [{ $match: { status: "FAILED" } }, { $count: "n" }],
+              pending: [{ $match: { status: { $in: ["NOT_GENERATED", "PENDING"] } } }, { $count: "n" }],
+            },
+          },
+        ])
+      : [{ issued: [], failed: [], pending: [] }],
     eventIds.length ? Certificate.countDocuments({ ...scoped, downloadCount: { $gt: 0 } }) : 0,
     eventIds.length ? Certificate.countDocuments({ ...scoped, verificationCount: { $gt: 0 } }) : 0,
     eventIds.length ? Candidate.countDocuments(scoped) : 0,
@@ -59,12 +64,18 @@ export default async function AdminDashboardPage() {
     eventIds.length
       ? Certificate.aggregate([{ $match: scoped }, { $group: { _id: null, total: { $sum: "$verificationCount" } } }])
       : [],
+    // Single $facet replaces 2 separate Feedback aggregates
     eventIds.length
-      ? Feedback.aggregate([{ $match: scoped }, { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } }])
-      : [],
-    eventIds.length
-      ? Feedback.aggregate([{ $match: scoped }, { $group: { _id: "$rating", count: { $sum: 1 } } }])
-      : [],
+      ? Feedback.aggregate([
+          { $match: scoped },
+          {
+            $facet: {
+              stats: [{ $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } }],
+              buckets: [{ $group: { _id: "$rating", count: { $sum: 1 } } }],
+            },
+          },
+        ])
+      : [{ stats: [], buckets: [] }],
     eventIds.length
       ? AuditEvent.find(scoped).sort({ createdAt: -1 }).limit(8).lean()
       : [],
@@ -73,6 +84,15 @@ export default async function AdminDashboardPage() {
       : [],
     isSuperAdmin ? User.countDocuments() : 0,
   ]);
+
+  const cf = certFacet[0] ?? { issued: [], failed: [], pending: [] };
+  const issued = cf.issued[0]?.n ?? 0;
+  const failed = cf.failed[0]?.n ?? 0;
+  const pending = cf.pending[0]?.n ?? 0;
+
+  const ff = feedbackFacet[0] ?? { stats: [], buckets: [] };
+  const ratingAgg = ff.stats;
+  const ratingBuckets = ff.buckets;
 
   const downloadTotal = downloadAgg[0]?.total || 0;
   const verificationTotal = verificationAgg[0]?.total || 0;

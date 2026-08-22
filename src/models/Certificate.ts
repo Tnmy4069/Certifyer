@@ -22,6 +22,8 @@ const CertificateSchema = new Schema(
 
 CertificateSchema.index({ eventId: 1, status: 1 });
 CertificateSchema.index({ eventId: 1, candidateId: 1 }, { unique: true });
+CertificateSchema.index({ eventId: 1, downloadCount: 1 }); // dashboard downloaded count
+CertificateSchema.index({ eventId: 1, verificationCount: 1 }); // dashboard verification count
 
 export type CertificateDocument = InferSchemaType<typeof CertificateSchema> & {
   _id: mongoose.Types.ObjectId;

@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { connectDb } from "@/lib/db";
 import { getOwnedEvent, serializeEvent, eventOwnerLabel } from "@/lib/events/helpers";
-import { CertificateTemplate, Candidate, Certificate, Feedback } from "@/models";
+import { CertificateTemplate, Certificate, Feedback } from "@/models";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { absoluteUrl, formatDate } from "@/lib/utils";
@@ -27,12 +27,14 @@ export default async function EventDetailPage({ params }: Params) {
     notFound();
   }
 
-  const [template, candidateCount, certificates, feedbacks] = await Promise.all([
+  const [template, certificates, feedbacks] = await Promise.all([
     CertificateTemplate.findOne({ eventId: event._id }).lean(),
-    Candidate.countDocuments({ eventId: event._id }),
     Certificate.find({ eventId: event._id }).sort({ createdAt: -1 }).limit(5).lean(),
     Feedback.find({ eventId: event._id }).sort({ createdAt: -1 }).limit(10).lean(),
   ]);
+
+  // event.candidateCount is kept in sync by the import API — no extra query needed
+  const candidateCount = event.candidateCount;
 
   const avgRating = feedbacks.length
     ? (feedbacks.reduce((acc, f) => acc + f.rating, 0) / feedbacks.length).toFixed(1)

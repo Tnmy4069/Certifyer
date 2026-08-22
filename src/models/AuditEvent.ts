@@ -13,6 +13,7 @@ const AuditEventSchema = new Schema(
 );
 
 AuditEventSchema.index({ action: 1, createdAt: -1 });
+AuditEventSchema.index({ eventId: 1, createdAt: -1 }); // dashboard recent activity
 
 export type AuditEventDocument = InferSchemaType<typeof AuditEventSchema> & {
   _id: mongoose.Types.ObjectId;

@@ -46,10 +46,12 @@ export function CsvImportWizard({
   eventId,
   initialCandidates,
   setupNextHref,
+  totalCandidateCount,
 }: {
   eventId: string;
   initialCandidates: CandidateListItem[];
   setupNextHref?: string;
+  totalCandidateCount?: number;
 }) {
   const [stage, setStage] = useState<Stage>("upload");
   const [parsed, setParsed] = useState<ParsedCsv | null>(null);
@@ -390,8 +392,12 @@ export function CsvImportWizard({
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <CardTitle>Candidates ({candidates.length})</CardTitle>
-              <CardDescription>Candidates currently attached to this event.</CardDescription>
+              <CardTitle>Candidates ({totalCandidateCount ?? candidates.length})</CardTitle>
+              <CardDescription>
+                {(totalCandidateCount ?? candidates.length) > candidates.length
+                  ? `Showing latest ${candidates.length} of ${totalCandidateCount} total.`
+                  : "Candidates currently attached to this event."}
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               {candidates.length > 0 && stage === "upload" && (

@@ -33,7 +33,10 @@ export default async function CandidatesPage({ params, searchParams }: Params) {
     notFound();
   }
 
-  const documents = await Candidate.find({ eventId: event._id }).sort({ createdAt: -1 }).lean();
+  const [documents, totalCount] = await Promise.all([
+    Candidate.find({ eventId: event._id }).sort({ createdAt: -1 }).limit(100).lean(),
+    Candidate.countDocuments({ eventId: event._id }),
+  ]);
   const candidates: CandidateListItem[] = documents.map((candidate) => ({
     id: String(candidate._id),
     name: candidate.name,
@@ -60,6 +63,7 @@ export default async function CandidatesPage({ params, searchParams }: Params) {
       <CsvImportWizard
         eventId={eventId}
         initialCandidates={candidates}
+        totalCandidateCount={totalCount}
         setupNextHref={isSetup ? `/admin/events/${eventId}/template?setup=1` : undefined}
       />
       {isSetup ? (
